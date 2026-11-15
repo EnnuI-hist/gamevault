@@ -21,17 +21,10 @@ export function formatDate(dateStr: string): string {
 }
 
 /**
- * Заменяет домен в ссылках на картинки и файлы из Supabase Storage
- * на прокси-адрес через регулярное выражение без использования new URL().
+ * Возвращает исходную ссылку на медиафайл Supabase напрямую.
  */
 export function resolveMediaUrl(url?: string | null): string {
-  if (!url) return '';
-  if (url.includes('/storage/v1/object/public/')) {
-    const rawEnv = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, '');
-    const proxyBase = rawEnv && !rawEnv.includes('supabase.co') ? rawEnv : 'https://workers.dev';
-    return url.replace(/^https?:\/\/[^/]+/, proxyBase);
-  }
-  return url;
+  return url || '';
 }
 
 export async function downloadFile(url: string, filename: string): Promise<void> {
