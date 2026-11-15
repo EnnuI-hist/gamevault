@@ -7,18 +7,14 @@ import {
   Flame,
   Search,
   X,
-  ExternalLink,
   Plus,
   Check,
   Loader2,
   Sparkles,
   Gamepad2,
   RefreshCw,
-  SlidersHorizontal,
-  Layers,
   ArrowUpRight,
   TrendingUp,
-  Percent,
   ListTodo,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -34,7 +30,27 @@ import type { BacklogItem } from '@/lib/types';
 import AuthModal from '@/components/AuthModal';
 
 const PLANNED_CACHE_KEY = 'gamevault_deals_planned_cache';
-const STEAM_DEALS_CACHE_KEY = 'gamevault_deals_catalog_cache';
+const RUB_RATE_CACHE_KEY = 'gamevault_rub_rate';
+const CURRENCY_STORAGE_KEY = 'gamevault_deals_currency';
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const FALLBACK_RUB_RATE = 98;
+
+type Currency = 'RUB' | 'USD';
+
+// Функция форматирования цены в рублях или долларах
+function formatPrice(usdPrice: string | number, currency: Currency, rubRate: number): string {
+  const usd = typeof usdPrice === 'number' ? usdPrice : parseFloat(usdPrice);
+  if (isNaN(usd)) return String(usdPrice);
+
+  if (currency === 'USD') {
+    return `$${usd.toFixed(2)}`;
+  }
+
+  // Режим ₽ RUB: умножаем на актуальный курс, округляем до целого числа и разделяем разряды пробелами
+  const rub = Math.round(usd * rubRate);
+  const formattedNumber = rub.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `${formattedNumber} ₽`;
+}
 
 // Перевод оценок Steam на русский язык
 function formatSteamRating(text: string | null | undefined): string {
@@ -73,6 +89,10 @@ export default function DealsPage() {
   // Состояние авторизации
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  // Валюта и курс рубля
+  const [currency, setCurrency] = useState<Currency>('RUB');
+  const [rubRate, setRubRate] = useState<number>(FALLBACK_RUB_RATE);
+
   // Блок 1: Скидки на вишлист
   const [plannedDeals, setPlannedDeals] = useState<PlannedMatch[]>([]);
   const [loadingPlanned, setLoadingPlanned] = useState(true);
@@ -95,7 +115,41 @@ export default function DealsPage() {
   const [backlogTitleSet, setBacklogTitleSet] = useState<Set<string>>(new Set());
   const [addingDealId, setAddingDealId] = useState<string | null>(null);
 
-  // 1. Загрузка вишлиста из Supabase и проверка скидок через CheapShark API
+  // 1. Загрузка курса доллара к рублю через API open.er-api.com с кэшированием на 6 часов
+  const loadRubRate = useCallback(async () => {
+    try {
+      const cached = localStorage.getItem(RUB_RATE_CACHE_KEY);
+      if (cached) {
+        const { rate, timestamp } = JSON.parse(cached);
+        if (typeof rate === 'number' && rate > 0 && Date.now() - timestamp < SIX_HOURS_MS) {
+          setRubRate(rate);
+          return;
+        }
+      }
+    } catch {}
+
+    try {
+      const res = await fetch('https://open.er-api.com/v6/latest/USD');
+      if (!res.ok) throw new Error('API er-api.com returned non-200');
+      const data = await res.json();
+      const rub = data?.rates?.RUB;
+      if (typeof rub === 'number' && rub > 0) {
+        setRubRate(rub);
+        try {
+          localStorage.setItem(
+            RUB_RATE_CACHE_KEY,
+            JSON.stringify({ rate: rub, timestamp: Date.now() })
+          );
+        } catch {}
+        return;
+      }
+    } catch (err) {
+      console.warn('Не удалось загрузить курс рубля через er-api.com, используется запасной курс 98:', err);
+    }
+    setRubRate(FALLBACK_RUB_RATE);
+  }, []);
+
+  // 2. Загрузка вишлиста из Supabase и проверка скидок через CheapShark API
   const loadPlannedDiscounts = useCallback(async (forceFresh = false) => {
     setLoadingPlanned(true);
     try {
@@ -166,7 +220,7 @@ export default function DealsPage() {
     }
   }, [supabase]);
 
-  // 2. Загрузка общего каталога акций Steam
+  // 3. Загрузка общего каталога акций Steam
   const loadSteamDeals = useCallback(
     async (page = 0, isAppend = false) => {
       if (page === 0) setLoadingDeals(true);
@@ -204,7 +258,7 @@ export default function DealsPage() {
     [sortBy, searchQuery]
   );
 
-  // 3. Загрузка всех существующих игр из бэклога для отметки «В планах»
+  // 4. Загрузка всех существующих игр из бэклога для отметки «В планах»
   const loadAllBacklogTitles = useCallback(async () => {
     try {
       const { data } = await supabase.from('game_backlog').select('title');
@@ -219,9 +273,18 @@ export default function DealsPage() {
 
   // Начальная загрузка при монтировании
   useEffect(() => {
+    // Восстанавливаем сохранённую валюту (по умолчанию RUB)
+    try {
+      const savedCurr = localStorage.getItem(CURRENCY_STORAGE_KEY) as Currency;
+      if (savedCurr === 'RUB' || savedCurr === 'USD') {
+        setCurrency(savedCurr);
+      }
+    } catch {}
+
+    loadRubRate();
     loadPlannedDiscounts();
     loadAllBacklogTitles();
-  }, [loadPlannedDiscounts, loadAllBacklogTitles]);
+  }, [loadRubRate, loadPlannedDiscounts, loadAllBacklogTitles]);
 
   // Загрузка акций при смене сортировки или запроса поиска
   useEffect(() => {
@@ -241,6 +304,15 @@ export default function DealsPage() {
     });
   }, [deals, minSavings]);
 
+  // Переключение валюты
+  const handleCurrencyChange = (newCurr: Currency) => {
+    setCurrency(newCurr);
+    try {
+      localStorage.setItem(CURRENCY_STORAGE_KEY, newCurr);
+    } catch {}
+    playClick();
+  };
+
   // Добавление игры в вишлист «В планах»
   const handleAddToPlanned = async (deal: CheapSharkDeal) => {
     if (!user) {
@@ -252,13 +324,18 @@ export default function DealsPage() {
     try {
       const headerUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/header.jpg`;
       const discount = Math.round(parseFloat(deal.savings));
+      const priceText = formatPrice(deal.salePrice, currency, rubRate);
+
+      const noteText = discount > 0
+        ? `Steam скидка -${discount}% (${priceText})`
+        : `Steam (${priceText})`;
 
       const { data, error } = await supabase
         .from('game_backlog')
         .insert({
           title: deal.title,
           status: 'planned',
-          note: `Steam скидка -${discount}% ($${deal.salePrice})`,
+          note: noteText,
           cover_url: headerUrl,
         })
         .select()
@@ -275,8 +352,8 @@ export default function DealsPage() {
         return next;
       });
 
-      // Добавляем в блок вишлиста
-      if (data) {
+      // Добавляем в блок вишлиста, если есть скидка
+      if (data && discount > 0) {
         setPlannedDeals((prev) => [
           { plannedItem: data as BacklogItem, deal },
           ...prev,
@@ -318,7 +395,7 @@ export default function DealsPage() {
                   style={{ backgroundColor: 'var(--neon-primary)', boxShadow: '0 0 8px var(--neon-primary)' }}
                 />
               </span>
-              <span>CheapShark Steam API • Real-Time Deals</span>
+              <span>CheapShark Steam API • 1 $ ≈ {Math.round(rubRate)} ₽</span>
             </div>
 
             <h1 className="font-fantasy text-2xl sm:text-3xl md:text-4xl font-black tracking-wide text-white">
@@ -335,13 +412,14 @@ export default function DealsPage() {
               type="button"
               onClick={() => {
                 playClick();
+                loadRubRate();
                 loadPlannedDiscounts(true);
                 loadSteamDeals(0, false);
               }}
               onMouseEnter={playHover}
               disabled={loadingPlanned || loadingDeals}
               className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs sm:text-sm font-medium text-white/80 backdrop-blur-md transition-all hover:bg-white/10 hover:border-white/30 hover:text-white active:scale-95 disabled:opacity-50 cursor-pointer shadow-sm"
-              title="Обновить акции прямо сейчас"
+              title="Обновить акции и курс валют прямо сейчас"
             >
               <RefreshCw size={14} className={loadingPlanned || loadingDeals ? 'animate-spin text-[var(--neon-primary)]' : ''} />
               <span>Обновить цены</span>
@@ -406,6 +484,7 @@ export default function DealsPage() {
               const discount = Math.round(parseFloat(deal.savings));
               const headerImg = `https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/header.jpg`;
               const metacritic = parseInt(deal.metacriticScore, 10);
+              const savingsAmount = parseFloat(deal.normalPrice) - parseFloat(deal.salePrice);
 
               return (
                 <div
@@ -428,10 +507,12 @@ export default function DealsPage() {
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
 
-                    {/* Бейдж размера скидки */}
-                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1 font-mono text-sm font-black text-white shadow-lg ring-1 ring-white/20">
-                      <span>-{discount}%</span>
-                    </div>
+                    {/* Бейдж размера скидки (только если > 0) */}
+                    {discount > 0 && (
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1 font-mono text-sm font-black text-white shadow-lg ring-1 ring-white/20">
+                        <span>-{discount}%</span>
+                      </div>
+                    )}
 
                     {/* Метка "Из вишлиста" */}
                     <div className="absolute top-2.5 left-2.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 px-2 py-0.5 text-[10px] font-mono text-white/90">
@@ -477,10 +558,12 @@ export default function DealsPage() {
 
                     {/* Цены */}
                     <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                      <div>
-                        <span className="text-xs font-mono text-white/40 line-through mr-2">
-                          ${deal.normalPrice}
-                        </span>
+                      <div className="flex items-baseline gap-2">
+                        {discount > 0 && (
+                          <span className="text-xs font-mono text-white/40 line-through">
+                            {formatPrice(deal.normalPrice, currency, rubRate)}
+                          </span>
+                        )}
                         <span
                           className="font-mono text-lg font-black text-white"
                           style={{
@@ -488,13 +571,15 @@ export default function DealsPage() {
                             textShadow: '0 0 12px rgba(var(--neon-primary-rgb), 0.8)',
                           }}
                         >
-                          ${deal.salePrice}
+                          {formatPrice(deal.salePrice, currency, rubRate)}
                         </span>
                       </div>
 
-                      <span className="text-[11px] font-mono text-emerald-400 font-semibold">
-                        Экономия ${ (parseFloat(deal.normalPrice) - parseFloat(deal.salePrice)).toFixed(2) }
-                      </span>
+                      {discount > 0 && savingsAmount > 0 && (
+                        <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                          Экономия {formatPrice(savingsAmount, currency, rubRate)}
+                        </span>
+                      )}
                     </div>
 
                     {/* Кнопки открытия */}
@@ -592,10 +677,10 @@ export default function DealsPage() {
           </div>
         </div>
 
-        {/* Панель фильтров и поиска */}
+        {/* Панель фильтров, поиска и переключателя валюты */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5 rounded-2xl border border-white/10 bg-[#0d111a]/85 p-3 sm:p-4 backdrop-blur-xl shadow-sm">
           {/* Поиск по названию */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[200px]">
             <Search
               size={16}
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40"
@@ -618,56 +703,84 @@ export default function DealsPage() {
             )}
           </div>
 
-          {/* Переключатель минимальной скидки */}
-          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shrink-0">
-            {[
-              { label: 'Все скидки', value: 0 },
-              { label: 'От 50%', value: 50 },
-              { label: 'От 75%', value: 75 },
-            ].map((tab) => (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => {
-                  setMinSavings(tab.value);
-                  playClick();
-                }}
-                onMouseEnter={playHover}
-                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
-                  minSavings === tab.value
-                    ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_10px_rgba(var(--neon-primary-rgb),0.3)]'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {/* Панель правых переключателей */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Стеклянно-неоновый переключатель валюты ₽ RUB / $ USD */}
+            <div
+              className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shrink-0"
+              title={`Курс валют: 1 USD ≈ ${rubRate.toFixed(1)} RUB (обновляется через er-api.com)`}
+            >
+              {(['RUB', 'USD'] as const).map((curr) => {
+                const isActive = currency === curr;
+                return (
+                  <button
+                    key={curr}
+                    type="button"
+                    onClick={() => handleCurrencyChange(curr)}
+                    onMouseEnter={playHover}
+                    className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_10px_rgba(var(--neon-primary-rgb),0.3)]'
+                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {curr === 'RUB' ? '₽ RUB' : '$ USD'}
+                  </button>
+                );
+              })}
+            </div>
 
-          {/* Переключатель сортировки */}
-          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shrink-0">
-            {[
-              { label: 'По рейтингу', value: 'Deal Rating' as DealSort },
-              { label: 'По скидке', value: 'Savings' as DealSort },
-              { label: 'По цене', value: 'Price' as DealSort },
-            ].map((tab) => (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => {
-                  setSortBy(tab.value);
-                  playClick();
-                }}
-                onMouseEnter={playHover}
-                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
-                  sortBy === tab.value
-                    ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_10px_rgba(var(--neon-primary-rgb),0.3)]'
-                    : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {/* Переключатель минимальной скидки */}
+            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shrink-0">
+              {[
+                { label: 'Все', value: 0 },
+                { label: 'От 50%', value: 50 },
+                { label: 'От 75%', value: 75 },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => {
+                    setMinSavings(tab.value);
+                    playClick();
+                  }}
+                  onMouseEnter={playHover}
+                  className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
+                    minSavings === tab.value
+                      ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_10px_rgba(var(--neon-primary-rgb),0.3)]'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Переключатель сортировки */}
+            <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shrink-0">
+              {[
+                { label: 'По рейтингу', value: 'Deal Rating' as DealSort },
+                { label: 'По скидке', value: 'Savings' as DealSort },
+                { label: 'По цене', value: 'Price' as DealSort },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => {
+                    setSortBy(tab.value);
+                    playClick();
+                  }}
+                  onMouseEnter={playHover}
+                  className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
+                    sortBy === tab.value
+                      ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_10px_rgba(var(--neon-primary-rgb),0.3)]'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -722,10 +835,12 @@ export default function DealsPage() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
 
-                      {/* Скидка в правом верхнем углу */}
-                      <div className="absolute top-2 right-2 rounded-lg bg-rose-600 px-2 py-0.5 font-mono text-xs font-black text-white shadow-md">
-                        -{discount}%
-                      </div>
+                      {/* Скидка в правом верхнем углу (ТОЛЬКО если скидка > 0%) */}
+                      {discount > 0 && (
+                        <div className="absolute top-2 right-2 rounded-lg bg-rose-600 px-2 py-0.5 font-mono text-xs font-black text-white shadow-md">
+                          -{discount}%
+                        </div>
+                      )}
 
                       {/* Оценка Metacritic на постере */}
                       {metacritic > 0 && (
@@ -764,12 +879,14 @@ export default function DealsPage() {
                         </div>
                       </div>
 
-                      {/* Цены */}
+                      {/* Цены: если discount <= 0%, зачёркнутая старая цена скрывается */}
                       <div className="pt-2 border-t border-white/5 flex items-baseline justify-between">
                         <div className="flex items-baseline gap-2">
-                          <span className="text-xs font-mono text-white/40 line-through">
-                            ${deal.normalPrice}
-                          </span>
+                          {discount > 0 && (
+                            <span className="text-xs font-mono text-white/40 line-through">
+                              {formatPrice(deal.normalPrice, currency, rubRate)}
+                            </span>
+                          )}
                           <span
                             className="font-mono text-base font-black text-white"
                             style={{
@@ -777,12 +894,12 @@ export default function DealsPage() {
                               textShadow: '0 0 10px rgba(var(--neon-primary-rgb), 0.7)',
                             }}
                           >
-                            ${deal.salePrice}
+                            {formatPrice(deal.salePrice, currency, rubRate)}
                           </span>
                         </div>
 
                         <span className="text-[10px] font-mono text-white/40">
-                          {deal.dealRating ? `Оценка акции: ${deal.dealRating}` : ''}
+                          {deal.dealRating ? `Рейтинг: ${deal.dealRating}` : ''}
                         </span>
                       </div>
 
