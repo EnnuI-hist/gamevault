@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { formatFileSize, formatDate, downloadFile, resolveMediaUrl } from '@/lib/utils';
+import { playSuccess, playClick, playHover } from '@/lib/sounds';
 import type { GameSave } from '@/lib/types';
 
 interface GameSavesSectionProps {
@@ -134,6 +135,7 @@ export default function GameSavesSection({
       if (fileInputRef.current) fileInputRef.current.value = '';
 
       if (newSave) {
+        playSuccess();
         setSaves((prev) => [newSave as GameSave, ...prev]);
         onSaveCountChange?.(saves.length + 1);
       }
@@ -150,6 +152,7 @@ export default function GameSavesSection({
   const handleDownload = async (save: GameSave) => {
     if (downloadingId === save.id) return;
     try {
+      playClick();
       setDownloadingId(save.id);
       await downloadFile(resolveMediaUrl(save.file_url), save.file_name);
     } catch (err) {
@@ -163,6 +166,7 @@ export default function GameSavesSection({
   const handleDelete = async (save: GameSave) => {
     if (!confirm(`Удалить сохранение «${save.file_name}»?`)) return;
     try {
+      playClick();
       setDeletingId(save.id);
 
       // 1. Удаляем из Storage
@@ -403,6 +407,7 @@ export default function GameSavesSection({
                   <button
                     type="button"
                     onClick={() => handleDownload(save)}
+                    onMouseEnter={playHover}
                     disabled={downloadingId === save.id}
                     title="Скачать файл сохранения на диск"
                     className="flex items-center gap-1.5 rounded-xl border border-[var(--neon-badge-border)] bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-[var(--neon-text)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.2)] transition-all duration-200 hover:bg-[var(--neon-badge-bg)] hover:border-[var(--neon-border-hover)] hover:shadow-[0_0_16px_rgba(var(--neon-primary-rgb),0.4)] hover:text-white active:scale-95 disabled:opacity-50"
@@ -419,6 +424,7 @@ export default function GameSavesSection({
                     <button
                       type="button"
                       onClick={() => handleDelete(save)}
+                      onMouseEnter={playHover}
                       disabled={deletingId === save.id}
                       title="Удалить сохранение"
                       className="rounded-xl border border-transparent p-1.5 text-white/40 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 active:scale-95 disabled:opacity-50"

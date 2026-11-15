@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Upload, Loader2, Check, AlertCircle, ImageIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { slugify, resolveMediaUrl } from '@/lib/utils';
+import { playSuccess, playClick } from '@/lib/sounds';
 import type { Game } from '@/lib/types';
 
 interface EditGameModalProps {
@@ -161,6 +162,7 @@ export default function EditGameModal({
         cover_url: finalCoverUrl,
       };
 
+      playSuccess();
       onUpdated(updated);
       onClose();
     } catch (err) {

@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { resolveMediaUrl } from '@/lib/utils';
 import StatusBadge, { STATUS_LIST } from '@/components/StatusBadge';
 import TiltCard from '@/components/TiltCard';
+import { playClick, playHover, playSuccess } from '@/lib/sounds';
 import type { BacklogItem, GameStatus } from '@/lib/types';
 
 type FilterType = 'all' | GameStatus;
@@ -314,6 +315,7 @@ export default function BacklogPage() {
 
       if (data) {
         updateItemsAndCache([data as BacklogItem, ...items]);
+        playSuccess();
         setNewTitle('');
         setNewNote('');
         setNewCoverFile(null);
@@ -334,6 +336,11 @@ export default function BacklogPage() {
 
   // Переключение статуса в 1 клик
   const handleStatusChange = async (id: string, nextStatus: GameStatus) => {
+    if (nextStatus === 'completed') {
+      playSuccess();
+    } else {
+      playClick();
+    }
     const prevItems = [...items];
     const nextItems = items.map((item) =>
       item.id === id ? { ...item, status: nextStatus } : item
@@ -566,6 +573,12 @@ export default function BacklogPage() {
         .eq('id', badgeModalItem.id);
 
       if (error) throw error;
+
+      if (cleanBadge) {
+        playSuccess();
+      } else {
+        playClick();
+      }
 
       updateItemsAndCache(
         items.map((i) =>
@@ -1038,7 +1051,11 @@ export default function BacklogPage() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveFilter(tab.id)}
+                onClick={() => {
+                  setActiveFilter(tab.id);
+                  playClick();
+                }}
+                onMouseEnter={playHover}
                 className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
                   isActive
                     ? `${tab.activeClass} font-semibold`
@@ -1199,7 +1216,11 @@ export default function BacklogPage() {
                       {user ? (
                         <button
                           type="button"
-                          onClick={() => openCoverModal(item)}
+                          onClick={() => {
+                            playClick();
+                            openCoverModal(item);
+                          }}
+                          onMouseEnter={playHover}
                           className="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 rounded-xl neon-btn-primary active:scale-95 text-white px-3 py-1.5 text-xs font-medium shadow-lg mb-2"
                         >
                           <ImagePlus size={13} />
@@ -1232,7 +1253,11 @@ export default function BacklogPage() {
                       <button
                         type="button"
                         title="Присвоить награду (Зал Славы)"
-                        onClick={() => openBadgeModal(item)}
+                        onClick={() => {
+                          playClick();
+                          openBadgeModal(item);
+                        }}
+                        onMouseEnter={playHover}
                         className={`flex items-center justify-center rounded-xl border bg-[#0d111a]/80 backdrop-blur-md p-2 shadow-lg transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.35)] active:scale-95 ${
                           item.badge
                             ? 'border-[var(--neon-border)] text-[var(--neon-text)] shadow-[0_0_10px_rgba(var(--neon-primary-rgb),0.3)]'
@@ -1245,7 +1270,11 @@ export default function BacklogPage() {
                       <button
                         type="button"
                         title="Сменить обложку"
-                        onClick={() => openCoverModal(item)}
+                        onClick={() => {
+                          playClick();
+                          openCoverModal(item);
+                        }}
+                        onMouseEnter={playHover}
                         className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.35)] active:scale-95"
                       >
                         <ImagePlus size={14} />
@@ -1254,7 +1283,11 @@ export default function BacklogPage() {
                       <button
                         type="button"
                         title="Удалить из списка"
-                        onClick={() => handleDelete(item)}
+                        onClick={() => {
+                          playClick();
+                          handleDelete(item);
+                        }}
+                        onMouseEnter={playHover}
                         className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-red-500/60 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_12px_rgba(239,68,68,0.35)] active:scale-95"
                       >
                         <Trash2 size={14} />
@@ -1287,7 +1320,15 @@ export default function BacklogPage() {
                     {/* Заметка / Оценка */}
                     {item.note ? (
                       <div
-                        onClick={() => user && openNoteModal(item)}
+                        onClick={() => {
+                          if (user) {
+                            playClick();
+                            openNoteModal(item);
+                          }
+                        }}
+                        onMouseEnter={() => {
+                          if (user) playHover();
+                        }}
                         className={`mt-1.5 flex items-center gap-1.5 rounded-lg bg-white/5 px-2 py-1 text-[11px] text-white/70 ${
                           user
                             ? 'cursor-pointer hover:bg-white/10 hover:text-white'
@@ -1307,7 +1348,11 @@ export default function BacklogPage() {
                       user && (
                         <button
                           type="button"
-                          onClick={() => openNoteModal(item)}
+                          onClick={() => {
+                            playClick();
+                            openNoteModal(item);
+                          }}
+                          onMouseEnter={playHover}
                           className="mt-1 flex items-center gap-1 text-[11px] text-white/30 hover:text-[var(--neon-text)] transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <MessageSquarePlus size={11} />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { playHover } from '@/lib/sounds';
 
 interface TiltCardProps {
   coverUrl?: string | null;
@@ -50,6 +51,7 @@ export default function TiltCard({
 
   const handleMouseEnter = () => {
     setIsHovered(true);
+    playHover();
   };
 
   const handleMouseLeave = () => {

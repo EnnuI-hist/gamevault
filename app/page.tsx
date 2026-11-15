@@ -8,6 +8,7 @@ import GameCard from '@/components/GameCard';
 import AddGameModal from '@/components/AddGameModal';
 import DeleteGameModal from '@/components/DeleteGameModal';
 import EditGameModal from '@/components/EditGameModal';
+import { playClick, playHover } from '@/lib/sounds';
 import type { Game } from '@/lib/types';
 
 const CACHE_KEY = 'gamevault_home_games';
@@ -144,7 +145,11 @@ export default function HomePage() {
 
           {user && (
             <button
-              onClick={() => setShowAddGame(true)}
+              onClick={() => {
+                playClick();
+                setShowAddGame(true);
+              }}
+              onMouseEnter={playHover}
               className="flex items-center justify-center gap-2 rounded-xl px-5 py-2 text-sm font-medium text-white transition neon-btn-primary active:scale-95 shrink-0"
             >
               <Plus size={18} />

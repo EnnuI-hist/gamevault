@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { Video, AlertCircle, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { formatFileSize } from '@/lib/utils';
+import { playSuccess, playHover, playClick } from '@/lib/sounds';
 
 interface VideoUploadProps {
   gameId: string;
@@ -132,6 +133,7 @@ export default function VideoUpload({ gameId, onUploaded }: VideoUploadProps) {
     }
 
     setIsUploading(false);
+    playSuccess();
     onUploaded();
     setTimeout(() => setUploads([]), 4000);
   };

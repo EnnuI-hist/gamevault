@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { X, Plus, Upload, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
+import { playSuccess, playClick } from '@/lib/sounds';
 
 interface AddGameModalProps {
   onClose: () => void;
@@ -56,6 +57,7 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
 
       if (dbErr) throw dbErr;
 
+      playSuccess();
       onAdded();
       onClose();
     } catch (err) {

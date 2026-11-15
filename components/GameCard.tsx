@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Image as ImageIcon, Trash2, Pencil } from 'lucide-react';
 import TiltCard from './TiltCard';
 import { resolveMediaUrl } from '@/lib/utils';
+import { playClick, playHover } from '@/lib/sounds';
 import type { Game } from '@/lib/types';
 
 interface GameCardProps {
@@ -27,7 +28,12 @@ export default function GameCard({
   const resolvedCoverUrl = resolveMediaUrl(game.cover_url);
 
   return (
-    <Link href={`/game?slug=${encodeURIComponent(game.slug)}`} className="group block">
+    <Link
+      href={`/game?slug=${encodeURIComponent(game.slug)}`}
+      onClick={playClick}
+      onMouseEnter={playHover}
+      className="group block"
+    >
       <TiltCard
         coverUrl={resolvedCoverUrl}
         className="border border-white/10 neon-card-glow"
@@ -65,8 +71,10 @@ export default function GameCard({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    playClick();
                     onEdit(game);
                   }}
+                  onMouseEnter={playHover}
                   className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.35)] active:scale-95"
                 >
                   <Pencil size={13} />
@@ -80,8 +88,10 @@ export default function GameCard({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    playClick();
                     onDelete(game);
                   }}
+                  onMouseEnter={playHover}
                   className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-red-500/60 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_12px_rgba(239,68,68,0.35)] active:scale-95"
                 >
                   <Trash2 size={13} />

@@ -14,6 +14,7 @@ import DownloadZipButton from '@/components/DownloadZipButton';
 import DeleteGameModal from '@/components/DeleteGameModal';
 import EditGameModal from '@/components/EditGameModal';
 import GameSavesSection from '@/components/GameSavesSection';
+import { playClick, playHover } from '@/lib/sounds';
 import type { Game, Screenshot } from '@/lib/types';
 
 const PAGE_SIZE = 30;
@@ -143,6 +144,8 @@ export default function GamePageContent() {
         <div className="relative z-10 mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6">
           <Link
             href="/"
+            onClick={playClick}
+            onMouseEnter={playHover}
             className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#0d111a]/60 px-3.5 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-md transition-all duration-200 hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95 mb-6 shadow-sm"
           >
             <ArrowLeft size={15} />
@@ -179,7 +182,11 @@ export default function GamePageContent() {
                 <>
                   <button
                     type="button"
-                    onClick={() => setShowEditModal(true)}
+                    onClick={() => {
+                      playClick();
+                      setShowEditModal(true);
+                    }}
+                    onMouseEnter={playHover}
                     title="Изменить обложку или название игры"
                     className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-4 py-2.5 text-sm font-medium text-white/80 transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.25)] active:scale-95 shrink-0 shadow-sm"
                   >
@@ -188,7 +195,11 @@ export default function GamePageContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowDeleteModal(true)}
+                    onClick={() => {
+                      playClick();
+                      setShowDeleteModal(true);
+                    }}
+                    onMouseEnter={playHover}
                     title="Удалить игру и все её материалы"
                     className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 backdrop-blur-md px-4 py-2.5 text-sm font-medium text-red-400 transition-all duration-200 hover:border-red-500/70 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_14px_rgba(239,68,68,0.3)] active:scale-95 shrink-0 shadow-sm"
                   >
@@ -209,7 +220,11 @@ export default function GamePageContent() {
           <div className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 bg-[#0d111a]/80 p-1.5 backdrop-blur-md shadow-inner">
             <button
               type="button"
-              onClick={() => setActiveTab('gallery')}
+              onClick={() => {
+                playClick();
+                setActiveTab('gallery');
+              }}
+              onMouseEnter={playHover}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                 activeTab === 'gallery'
                   ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
@@ -231,7 +246,11 @@ export default function GamePageContent() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('saves')}
+              onClick={() => {
+                playClick();
+                setActiveTab('saves');
+              }}
+              onMouseEnter={playHover}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                 activeTab === 'saves'
                   ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'

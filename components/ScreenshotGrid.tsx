@@ -5,6 +5,7 @@ import { Loader2, Trash2, Download, Play } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useInfiniteScroll } from '@/lib/hooks/useInfiniteScroll';
 import { downloadFile, resolveMediaUrl } from '@/lib/utils';
+import { playClick, playHover } from '@/lib/sounds';
 import Lightbox from './Lightbox';
 import { cloudinaryThumb } from './VideoUpload';
 import type { Screenshot } from '@/lib/types';
@@ -52,6 +53,7 @@ export default function ScreenshotGrid({
 
   const handleDelete = async (screenshot: Screenshot) => {
     if (!confirm('Удалить?')) return;
+    playClick();
     // Удаляем из Supabase Storage только изображения; видео (Cloudinary) не трогаем
     if (screenshot.media_type !== 'video') {
       await supabase.storage.from('screenshots').remove([screenshot.storage_path]);
@@ -71,6 +73,7 @@ export default function ScreenshotGrid({
   const handleQuickDownload = async (e: React.MouseEvent, shot: Screenshot) => {
     e.stopPropagation();
     if (downloadingId === shot.id) return;
+    playClick();
     try {
       setDownloadingId(shot.id);
       const ext = shot.storage_path.split('.').pop() || (shot.media_type === 'video' ? 'mp4' : 'webp');
@@ -112,7 +115,11 @@ export default function ScreenshotGrid({
             <div
               key={shot.id}
               className="group relative break-inside-avoid overflow-hidden rounded-lg border border-white/5 bg-[#131720] cursor-zoom-in"
-              onClick={() => setLightboxIndex(idx)}
+              onClick={() => {
+                playClick();
+                setLightboxIndex(idx);
+              }}
+              onMouseEnter={playHover}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

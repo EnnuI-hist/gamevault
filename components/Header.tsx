@@ -17,20 +17,38 @@ import {
   Sparkles,
   Hexagon,
   Shield,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useTheme, THEMES } from '@/lib/context/ThemeContext';
 import { useBackground, BACKGROUNDS } from '@/lib/context/BackgroundContext';
+import { isSoundEnabled, toggleSound, playClick, playHover } from '@/lib/sounds';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const { user, loading, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { background, setBackground, currentBackground } = useBackground();
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [showBgMenu, setShowBgMenu] = useState(false);
   const bgMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    setSoundEnabled(isSoundEnabled());
+    const onSoundChange = (e: Event) => {
+      const custom = e as CustomEvent<{ enabled: boolean }>;
+      if (custom.detail !== undefined) {
+        setSoundEnabled(custom.detail.enabled);
+      }
+    };
+    window.addEventListener('gamevault_sound_change', onSoundChange);
+    return () => {
+      window.removeEventListener('gamevault_sound_change', onSoundChange);
+    };
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -107,6 +125,8 @@ export default function Header() {
             <Link
               href="/"
               prefetch={false}
+              onClick={playClick}
+              onMouseEnter={playHover}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
                 isShowcase
                   ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
@@ -120,6 +140,8 @@ export default function Header() {
             <Link
               href="/list"
               prefetch={false}
+              onClick={playClick}
+              onMouseEnter={playHover}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
                 isList
                   ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
@@ -131,8 +153,8 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Правая часть: Переключатель тем и Авторизация */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+          {/* Правая часть: Переключатели тем, обоев, звука и Авторизация */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {/* Переключатель 4 неоновых тем */}
             <div
               className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#0d121d]/80 px-2.5 py-1.5 backdrop-blur-md shadow-sm"
@@ -145,7 +167,11 @@ export default function Header() {
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setTheme(t.id)}
+                    onClick={() => {
+                      setTheme(t.id);
+                      playClick();
+                    }}
+                    onMouseEnter={playHover}
                     title={t.name}
                     aria-label={t.name}
                     className={`relative h-4.5 w-4.5 sm:h-5 sm:w-5 rounded-full transition-all duration-300 ${
@@ -170,7 +196,11 @@ export default function Header() {
             <div className="relative" ref={bgMenuRef}>
               <button
                 type="button"
-                onClick={() => setShowBgMenu((prev) => !prev)}
+                onClick={() => {
+                  setShowBgMenu((prev) => !prev);
+                  playClick();
+                }}
+                onMouseEnter={playHover}
                 className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium backdrop-blur-md transition-all duration-200 ${
                   showBgMenu
                     ? 'border-[var(--neon-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.3)]'
@@ -209,7 +239,9 @@ export default function Header() {
                           onClick={() => {
                             setBackground(bg.id);
                             setShowBgMenu(false);
+                            playClick();
                           }}
+                          onMouseEnter={playHover}
                           className={`flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all ${
                             isActive
                               ? 'bg-white/10 text-white border border-[var(--neon-border)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.2)]'
@@ -246,6 +278,35 @@ export default function Header() {
               )}
             </div>
 
+            {/* Аккуратная стеклянная кнопка переключения звука (Volume2 / VolumeX) */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = toggleSound();
+                if (next) playClick();
+              }}
+              onMouseEnter={playHover}
+              className={`flex items-center justify-center rounded-xl border px-2.5 py-1.5 text-xs font-medium backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer ${
+                soundEnabled
+                  ? 'border-[var(--neon-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.25)]'
+                  : 'border-white/10 bg-[#0d121d]/80 text-white/40 hover:bg-white/10 hover:text-white/80 hover:border-white/20'
+              }`}
+              title={soundEnabled ? 'Звук UI: Включен' : 'Звук UI: Выключен'}
+              aria-label={soundEnabled ? 'Выключить звук интерфейса' : 'Включить звук интерфейса'}
+            >
+              {soundEnabled ? (
+                <Volume2
+                  size={15}
+                  className="text-[var(--neon-text)] shrink-0 transition-transform duration-200 drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.6)]"
+                />
+              ) : (
+                <VolumeX
+                  size={15}
+                  className="text-white/40 shrink-0 transition-transform duration-200"
+                />
+              )}
+            </button>
+
             {/* Авторизация */}
             {!loading && (
               user ? (
@@ -255,7 +316,11 @@ export default function Header() {
                     <span className="max-w-[140px] truncate">{user.email}</span>
                   </div>
                   <button
-                    onClick={signOut}
+                    onClick={() => {
+                      playClick();
+                      signOut();
+                    }}
+                    onMouseEnter={playHover}
                     className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs sm:text-sm text-white/75 transition-all duration-200 hover:border-white/30 hover:bg-white/10 hover:text-white active:scale-95 shadow-sm"
                   >
                     <LogOut size={14} />
@@ -264,7 +329,11 @@ export default function Header() {
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => {
+                    playClick();
+                    setShowAuth(true);
+                  }}
+                  onMouseEnter={playHover}
                   className="flex items-center gap-2 rounded-xl px-4 py-1.5 text-xs sm:text-sm font-medium neon-btn-primary active:scale-95 cursor-pointer shadow-sm"
                 >
                   <LogIn size={14} className="text-[var(--neon-text)]" />

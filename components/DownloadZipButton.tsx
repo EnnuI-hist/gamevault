@@ -5,6 +5,7 @@ import { Download, Loader2, Check, Archive, AlertCircle } from 'lucide-react';
 import JSZip from 'jszip';
 import { createClient } from '@/lib/supabase/client';
 import { slugify, resolveMediaUrl } from '@/lib/utils';
+import { playClick, playHover, playSuccess } from '@/lib/sounds';
 import type { Game } from '@/lib/types';
 
 interface DownloadZipButtonProps {
@@ -102,6 +103,7 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
 
       setStatus('done');
       setProgressText('Готово!');
+      playSuccess();
       setTimeout(() => {
         setStatus('idle');
         setPercent(0);
@@ -123,7 +125,11 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
 
   return (
     <button
-      onClick={handleDownloadAll}
+      onClick={() => {
+        playClick();
+        handleDownloadAll();
+      }}
+      onMouseEnter={playHover}
       disabled={isWorking}
       title="Скачать все скриншоты одним ZIP архивом"
       className="relative flex items-center gap-2 overflow-hidden rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-80 shrink-0 neon-btn-primary active:scale-95 cursor-pointer shadow-md"

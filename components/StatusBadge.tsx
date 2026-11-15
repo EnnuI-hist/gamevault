@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { CheckCircle2, Gamepad2, Clock, XCircle, ChevronDown } from 'lucide-react';
+import { playClick, playHover } from '@/lib/sounds';
 import type { GameStatus } from '@/lib/types';
 
 export interface StatusConfig {
@@ -105,6 +106,7 @@ export default function StatusBadge({
     if (!isInteractive) return;
     e.preventDefault();
     e.stopPropagation();
+    playClick();
     setIsOpen((prev) => !prev);
   };
 
@@ -116,6 +118,9 @@ export default function StatusBadge({
         type="button"
         disabled={!isInteractive}
         onClick={handleToggle}
+        onMouseEnter={() => {
+          if (isInteractive) playHover();
+        }}
         title={isInteractive ? 'Нажмите для быстрой смены статуса' : currentConfig.label}
         className={`group inline-flex items-center gap-1.5 rounded-lg border backdrop-blur-md font-medium shadow-md transition-all duration-200 ${
           currentConfig.badgeClass
@@ -159,6 +164,7 @@ export default function StatusBadge({
                 key={item.value}
                 type="button"
                 onClick={(e) => handleSelect(e, item.value)}
+                onMouseEnter={playHover}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
                   isCurrent
                     ? 'bg-white/10 text-white font-semibold'

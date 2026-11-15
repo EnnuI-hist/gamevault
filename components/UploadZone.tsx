@@ -5,6 +5,7 @@ import { UploadCloud, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ProgressBar from './ProgressBar';
 import { formatFileSize } from '@/lib/utils';
+import { playSuccess, playHover, playClick } from '@/lib/sounds';
 import type { UploadProgress } from '@/lib/types';
 
 interface UploadZoneProps {
@@ -90,6 +91,7 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
 
     isUploadingRef.current = true;
     setIsUploading(true);
+    let successCount = 0;
 
     const initialProgress = imageFiles.map((f) => ({
       file: f.name,
@@ -144,6 +146,7 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
 
         if (dbErr) throw dbErr;
 
+        successCount++;
         setUploads((prev) =>
           prev.map((u, idx) => idx === i ? { ...u, progress: 100, status: 'done' } : u)
         );
@@ -156,6 +159,9 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
 
     isUploadingRef.current = false;
     setIsUploading(false);
+    if (successCount > 0) {
+      playSuccess();
+    }
     onUploaded();
     setTimeout(() => setUploads([]), 3000);
   }, [gameId, gameSlug, onUploaded, supabase]);
@@ -174,7 +180,13 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
         onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={onDrop}
-        onClick={() => !isUploading && inputRef.current?.click()}
+        onMouseEnter={playHover}
+        onClick={() => {
+          if (!isUploading) {
+            playClick();
+            inputRef.current?.click();
+          }
+        }}
         className={`relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-all duration-200 ${
           isDragOver
             ? 'border-[var(--neon-primary)] bg-[var(--neon-badge-bg)]'

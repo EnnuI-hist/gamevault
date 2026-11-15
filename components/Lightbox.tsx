@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, Edit2, Check, Trash2, Loader2 } from 'lucide-react';
 import { downloadFile, resolveMediaUrl } from '@/lib/utils';
+import { playSwipe, playClick, playHover } from '@/lib/sounds';
 import type { Screenshot } from '@/lib/types';
 
 interface LightboxProps {
@@ -31,8 +32,15 @@ export default function Lightbox({
   const isVideo = current?.media_type === 'video';
   const resolvedUrl = resolveMediaUrl(current?.public_url);
 
-  const prev = useCallback(() => setIndex((i) => (i > 0 ? i - 1 : screenshots.length - 1)), [screenshots.length]);
-  const next = useCallback(() => setIndex((i) => (i < screenshots.length - 1 ? i + 1 : 0)), [screenshots.length]);
+  const prev = useCallback(() => {
+    playSwipe();
+    setIndex((i) => (i > 0 ? i - 1 : screenshots.length - 1));
+  }, [screenshots.length]);
+
+  const next = useCallback(() => {
+    playSwipe();
+    setIndex((i) => (i < screenshots.length - 1 ? i + 1 : 0));
+  }, [screenshots.length]);
 
   useEffect(() => {
     setCaptionDraft(current?.caption ?? '');
@@ -100,6 +108,7 @@ export default function Lightbox({
         <div className="flex items-center gap-2">
           <button
             onClick={handleDownload}
+            onMouseEnter={playHover}
             disabled={downloading}
             title={isVideo ? 'Скачать видео' : 'Скачать файл на диск в максимальном качестве'}
             className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-white/80 transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.3)] active:scale-95 disabled:opacity-50"
@@ -113,14 +122,22 @@ export default function Lightbox({
           </button>
           {isOwner && (
             <button
-              onClick={() => onDelete(current)}
+              onClick={() => {
+                playClick();
+                onDelete(current);
+              }}
+              onMouseEnter={playHover}
               className="rounded-xl border border-red-500/40 bg-red-500/10 p-2 text-red-400 transition-all duration-200 hover:border-red-500/70 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_12px_rgba(239,68,68,0.3)] active:scale-95"
             >
               <Trash2 size={14} />
             </button>
           )}
           <button
-            onClick={onClose}
+            onClick={() => {
+              playClick();
+              onClose();
+            }}
+            onMouseEnter={playHover}
             className="rounded-xl border border-white/15 bg-white/5 p-2 text-white/60 transition-all duration-200 hover:border-white/30 hover:bg-white/10 hover:text-white active:scale-95"
           >
             <X size={16} />
@@ -154,7 +171,8 @@ export default function Lightbox({
         {/* Стрелка назад */}
         <button
           onClick={prev}
-          className="absolute left-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white/60 backdrop-blur-sm transition hover:bg-black/70 hover:text-white"
+          onMouseEnter={playHover}
+          className="absolute left-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white/60 backdrop-blur-sm transition hover:bg-black/70 hover:text-white cursor-pointer"
         >
           <ChevronLeft size={22} />
         </button>
@@ -162,7 +180,8 @@ export default function Lightbox({
         {/* Стрелка вперёд */}
         <button
           onClick={next}
-          className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white/60 backdrop-blur-sm transition hover:bg-black/70 hover:text-white"
+          onMouseEnter={playHover}
+          className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white/60 backdrop-blur-sm transition hover:bg-black/70 hover:text-white cursor-pointer"
         >
           <ChevronRight size={22} />
         </button>

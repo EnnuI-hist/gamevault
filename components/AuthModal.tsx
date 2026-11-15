@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, LogIn, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { playSuccess, playClick } from '@/lib/sounds';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -23,6 +24,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
     if (error) {
       setError('Неверный email или пароль');
     } else {
+      playSuccess();
       onClose();
     }
     setLoading(false);
