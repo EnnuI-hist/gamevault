@@ -64,18 +64,18 @@ function getDealDisplayPrices(
 ) {
   // Если есть реальные региональные данные украинского Steam (cc=ua)
   if (steamPrice && typeof steamPrice.final === 'number') {
-    const saleUah = steamPrice.final / 100;
-    const normalUah = steamPrice.initial / 100;
-    const discount = steamPrice.discount_percent;
-    const hasDiscount = discount > 0 && normalUah > saleUah;
+    const currentPriceUah = steamPrice.final / 100;
+    const initialPriceUah = steamPrice.initial / 100;
+    const discountPercent = steamPrice.discount_percent;
+    const hasDiscount = discountPercent > 0 && initialPriceUah > currentPriceUah;
 
     return {
-      discount,
+      discount: discountPercent,
       hasDiscount,
-      saleFormatted: formatPrice(saleUah, currency, uahToRubRate),
-      normalFormatted: formatPrice(normalUah, currency, uahToRubRate),
+      saleFormatted: formatPrice(currentPriceUah, currency, uahToRubRate),
+      normalFormatted: formatPrice(initialPriceUah, currency, uahToRubRate),
       savingsFormatted: hasDiscount
-        ? formatPrice(normalUah - saleUah, currency, uahToRubRate)
+        ? formatPrice(initialPriceUah - currentPriceUah, currency, uahToRubRate)
         : '',
       isSteamUa: true,
     };
@@ -144,6 +144,7 @@ export default function DealsPage() {
 
   // Кэш региональных цен украинского Steam (cc=ua) по steamAppID
   const [steamPrices, setSteamPrices] = useState<Record<string, SteamPriceData>>({});
+  const hasLiveSteamUa = Object.keys(steamPrices).length > 0;
 
   // Блок 1: Скидки на вишлист
   const [plannedDeals, setPlannedDeals] = useState<PlannedMatch[]>([]);
@@ -201,33 +202,55 @@ export default function DealsPage() {
     setUahToRubRate(FALLBACK_UAH_RUB);
   }, []);
 
-  // 2. Пакетная загрузка региональных цен украинского Steam (cc=ua) через Cloudflare Worker с таймаутом 6 секунд
+  // 2. Параллельная пакетная загрузка региональных цен украинского Steam (cc=ua) через Cloudflare Worker
+  // Важная особенность API Steam appdetails: при отправке 30 appids сразу Steam часто отклоняет запрос.
+  // Разбиваем steamAppID на пачки по 1–5 ID (по 3 ID за запрос) и отправляем параллельно через Promise.allSettled.
   const fetchSteamPrices = useCallback(async (ids: string[]) => {
     const validIds = Array.from(
       new Set(ids.map((id) => id?.trim()).filter((id) => Boolean(id) && id !== '0'))
     );
     if (validIds.length === 0) return;
 
+    // Пачки по 3 ID (в пределах 1–5 ID за запрос)
+    const CHUNK_SIZE = 3;
+    const chunks: string[][] = [];
+    for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
+      chunks.push(validIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const rawBase = process.env.NEXT_PUBLIC_STEAM_WORKER_URL?.trim();
+    const isInvalid = !rawBase || rawBase === 'https://workers.dev' || rawBase === 'http://workers.dev';
+    const baseUrl = (isInvalid
+      ? 'https://shiny-glade-1e5dsupabase-proxy.platonrysenko.workers.dev'
+      : rawBase
+    ).replace(/\/+$/, '');
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
 
     try {
-      const rawBase = process.env.NEXT_PUBLIC_STEAM_WORKER_URL || 'https://workers.dev';
-      const baseUrl = rawBase.trim().replace(/\/+$/, '');
-      const sep = baseUrl.includes('?') ? '&' : '?';
-      const url = `${baseUrl}${sep}appids=${validIds.join(',')}&cc=ua`;
+      const promises = chunks.map(async (chunk) => {
+        // Запрос строго в корень / с параметрами ?appids=...&cc=ua
+        const url = `${baseUrl}/?appids=${chunk.join(',')}&cc=ua`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error(`Steam worker response: ${res.status}`);
+        const json = await res.json();
+        return { chunk, json };
+      });
 
-      const res = await fetch(url, { signal: controller.signal });
+      const settled = await Promise.allSettled(promises);
       clearTimeout(timeoutId);
 
-      if (!res.ok) throw new Error(`Steam worker response: ${res.status}`);
-      const json = await res.json();
-
       const priceMap: Record<string, SteamPriceData> = {};
-      for (const appId of validIds) {
-        const item = json[appId];
-        if (item && item.success && item.data && item.data.price_overview) {
-          priceMap[appId] = item.data.price_overview;
+      for (const result of settled) {
+        if (result.status === 'fulfilled' && result.value?.json) {
+          const { chunk, json } = result.value;
+          for (const appId of chunk) {
+            const item = json[appId] || json[String(appId)];
+            if (item && item.success && item.data && item.data.price_overview) {
+              priceMap[appId] = item.data.price_overview;
+            }
+          }
         }
       }
 
@@ -236,7 +259,7 @@ export default function DealsPage() {
       }
     } catch (err) {
       clearTimeout(timeoutId);
-      console.warn('Загрузка цен Steam UA (cc=ua) прервана или завершилась ошибкой (используются запасные цены):', err);
+      console.warn('Загрузка цен Steam UA (cc=ua) прервана или завершилась ошибкой:', err);
     }
   }, []);
 
@@ -492,18 +515,33 @@ export default function DealsPage() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] px-3 py-1 text-xs font-mono font-medium text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.3)]">
-              <span className="relative flex h-2 w-2">
-                <span
-                  className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                  style={{ backgroundColor: 'var(--neon-primary)' }}
-                />
-                <span
-                  className="relative inline-flex rounded-full h-2 w-2"
-                  style={{ backgroundColor: 'var(--neon-primary)', boxShadow: '0 0 8px var(--neon-primary)' }}
-                />
-              </span>
-              <span>Steam UA (cc=ua) • 1 ₴ ≈ {uahToRubRate.toFixed(2)} ₽</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {hasLiveSteamUa ? (
+                <div
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-mono font-medium text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.3)] backdrop-blur-md"
+                  title="Реальные региональные цены украинского Steam (cc=ua) успешно загружены"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                  </span>
+                  <span>Регион: Украина (Steam UA • точные цены)</span>
+                </div>
+              ) : (
+                <div
+                  className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-mono font-medium text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.25)] backdrop-blur-md"
+                  title="Cloudflare Worker недоступен — цены приблизительно рассчитаны по курсу"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
+                  </span>
+                  <span>Резервный расчёт по курсу (Steam UA недоступен)</span>
+                </div>
+              )}
+
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-mono text-white/60">
+                <span>1 ₴ ≈ {uahToRubRate.toFixed(2)} ₽</span>
+              </div>
             </div>
 
             <h1 className="font-fantasy text-2xl sm:text-3xl md:text-4xl font-black tracking-wide text-white">
@@ -813,6 +851,32 @@ export default function DealsPage() {
 
           {/* Панель правых переключателей */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Индикатор источника цен рядом с переключателем валюты */}
+            {hasLiveSteamUa ? (
+              <div
+                className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-mono font-bold text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.25)] shrink-0"
+                title="Реальные региональные цены украинского Steam (cc=ua) успешно загружены"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                </span>
+                <span className="hidden sm:inline">Регион: Украина (Steam UA • точные цены)</span>
+                <span className="sm:hidden">Steam UA • точные цены</span>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-mono font-bold text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.2)] shrink-0"
+                title="Cloudflare Worker недоступен — цены приблизительно рассчитаны по курсу"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
+                </span>
+                <span className="hidden sm:inline">Резервный расчёт по курсу (Steam UA недоступен)</span>
+                <span className="sm:hidden">Резервный расчёт</span>
+              </div>
+            )}
+
             {/* Стеклянно-неоновый переключатель валюты ₴ UAH / ₽ RUB */}
             <div
               className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shrink-0"
