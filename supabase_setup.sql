@@ -55,6 +55,18 @@ CREATE TABLE IF NOT EXISTS public.game_saves (
 CREATE INDEX IF NOT EXISTS game_saves_game_id_idx ON public.game_saves(game_id);
 CREATE INDEX IF NOT EXISTS game_saves_created_at_idx ON public.game_saves(created_at DESC);
 
+-- 4. Таблица бэклога / вертикального списка игр (Game Backlog)
+CREATE TABLE IF NOT EXISTS public.game_backlog (
+  id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title      text NOT NULL,
+  status     text NOT NULL DEFAULT 'planned' CHECK (status IN ('completed', 'playing', 'planned', 'dropped')),
+  note       text DEFAULT '',
+  created_at timestamptz DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS game_backlog_status_idx ON public.game_backlog(status);
+CREATE INDEX IF NOT EXISTS game_backlog_created_at_idx ON public.game_backlog(created_at DESC);
+
 -- ============================================================
 -- RLS: включаем Row Level Security
 -- ============================================================
@@ -62,6 +74,7 @@ CREATE INDEX IF NOT EXISTS game_saves_created_at_idx ON public.game_saves(create
 ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.screenshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_saves ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.game_backlog ENABLE ROW LEVEL SECURITY;
 
 -- Удаляем старые политики если есть
 DROP POLICY IF EXISTS "games_public_read"  ON public.games;
@@ -78,6 +91,11 @@ DROP POLICY IF EXISTS "game_saves_public_read"  ON public.game_saves;
 DROP POLICY IF EXISTS "game_saves_owner_insert" ON public.game_saves;
 DROP POLICY IF EXISTS "game_saves_owner_update" ON public.game_saves;
 DROP POLICY IF EXISTS "game_saves_owner_delete" ON public.game_saves;
+
+DROP POLICY IF EXISTS "game_backlog_public_read"  ON public.game_backlog;
+DROP POLICY IF EXISTS "game_backlog_owner_insert" ON public.game_backlog;
+DROP POLICY IF EXISTS "game_backlog_owner_update" ON public.game_backlog;
+DROP POLICY IF EXISTS "game_backlog_owner_delete" ON public.game_backlog;
 
 -- Games: читают все, пишут только аутентифицированные
 CREATE POLICY "games_public_read"
@@ -128,6 +146,23 @@ CREATE POLICY "game_saves_owner_update"
 
 CREATE POLICY "game_saves_owner_delete"
   ON public.game_saves FOR DELETE
+  USING (auth.role() = 'authenticated');
+
+-- Game Backlog: читают все, пишут только аутентифицированные
+CREATE POLICY "game_backlog_public_read"
+  ON public.game_backlog FOR SELECT
+  USING (true);
+
+CREATE POLICY "game_backlog_owner_insert"
+  ON public.game_backlog FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "game_backlog_owner_update"
+  ON public.game_backlog FOR UPDATE
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "game_backlog_owner_delete"
+  ON public.game_backlog FOR DELETE
   USING (auth.role() = 'authenticated');
 
 -- ============================================================

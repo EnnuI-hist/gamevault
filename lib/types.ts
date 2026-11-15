@@ -34,6 +34,14 @@ export interface GameSave {
   created_at: string;
 }
 
+export interface BacklogItem {
+  id: string;
+  title: string;
+  status: GameStatus;
+  note: string;
+  created_at: string;
+}
+
 export interface UploadProgress {
   file: string;
   progress: number;

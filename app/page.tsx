@@ -109,7 +109,7 @@ export default function HomePage() {
     },
     {
       id: 'playing',
-      label: 'Прохожу',
+      label: 'В процессе',
       icon: Gamepad2,
       count: counts.playing,
       activeClass: 'bg-amber-600 text-white shadow-amber-600/30',
