@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import GameCard from '@/components/GameCard';
 import AddGameModal from '@/components/AddGameModal';
+import DeleteGameModal from '@/components/DeleteGameModal';
 import type { Game } from '@/lib/types';
 
 export default function HomePage() {
@@ -13,6 +14,7 @@ export default function HomePage() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddGame, setShowAddGame] = useState(false);
+  const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
   const supabase = createClient();
 
   const loadGames = async () => {
@@ -66,7 +68,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Загрузка */}
+      {/* Сетка игр */}
       {loading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 12 }).map((_, i) => (
@@ -92,15 +94,33 @@ export default function HomePage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {games.map((game) => (
-            <GameCard key={game.id} game={game} />
+            <GameCard
+              key={game.id}
+              game={game}
+              isOwner={!!user}
+              onDelete={(g) => setGameToDelete(g)}
+            />
           ))}
         </div>
       )}
 
+      {/* Модал создания игры */}
       {showAddGame && (
         <AddGameModal
           onClose={() => setShowAddGame(false)}
           onAdded={loadGames}
+        />
+      )}
+
+      {/* Модал удаления игры */}
+      {gameToDelete && (
+        <DeleteGameModal
+          game={gameToDelete}
+          onClose={() => setGameToDelete(null)}
+          onDeleted={() => {
+            setGameToDelete(null);
+            loadGames();
+          }}
         />
       )}
     </div>

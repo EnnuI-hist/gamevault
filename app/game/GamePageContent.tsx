@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { ArrowLeft, Loader2, Gamepad2 } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { ArrowLeft, Loader2, Gamepad2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import ScreenshotGrid from '@/components/ScreenshotGrid';
 import UploadZone from '@/components/UploadZone';
 import DownloadZipButton from '@/components/DownloadZipButton';
+import DeleteGameModal from '@/components/DeleteGameModal';
 import type { Game, Screenshot } from '@/lib/types';
 
 const PAGE_SIZE = 30;
@@ -16,6 +17,7 @@ const PAGE_SIZE = 30;
 export default function GamePageContent() {
   const searchParams = useSearchParams();
   const slug = searchParams.get('slug');
+  const router = useRouter();
   const { user } = useAuth();
 
   const [game, setGame] = useState<Game | null>(null);
@@ -23,6 +25,7 @@ export default function GamePageContent() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const supabase = createClient();
@@ -151,7 +154,20 @@ export default function GamePageContent() {
               </div>
             </div>
 
-            <DownloadZipButton game={game} />
+            <div className="flex items-center gap-3">
+              <DownloadZipButton game={game} />
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  title="Удалить игру и все её скриншоты"
+                  className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:text-red-300 shrink-0"
+                >
+                  <Trash2 size={16} />
+                  <span>Удалить игру</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -174,6 +190,18 @@ export default function GamePageContent() {
           initialHasMore={hasMore}
         />
       </div>
+
+      {/* Модал подтверждения удаления игры */}
+      {showDeleteModal && (
+        <DeleteGameModal
+          game={game}
+          onClose={() => setShowDeleteModal(false)}
+          onDeleted={() => {
+            setShowDeleteModal(false);
+            router.push('/');
+          }}
+        />
+      )}
     </div>
   );
 }
