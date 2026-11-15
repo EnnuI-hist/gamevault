@@ -2,19 +2,21 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Image as ImageIcon, Trash2, Pencil } from 'lucide-react';
 import type { Game } from '@/lib/types';
 
 interface GameCardProps {
   game: Game;
   isOwner?: boolean;
   onDelete?: (game: Game) => void;
+  onEdit?: (game: Game) => void;
 }
 
 export default function GameCard({
   game,
   isOwner,
   onDelete,
+  onEdit,
 }: GameCardProps) {
   return (
     <Link href={`/game?slug=${encodeURIComponent(game.slug)}`} className="group block">
@@ -38,20 +40,39 @@ export default function GameCard({
           {/* Оверлей затемнения снизу при наведении */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-          {/* Кнопка удаления для владельца (справа сверху) */}
-          {isOwner && onDelete && (
-            <button
-              type="button"
-              title="Удалить игру"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onDelete(game);
-              }}
-              className="absolute right-2 top-2 z-20 flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 opacity-0 shadow-lg transition-all duration-200 group-hover:opacity-100 hover:bg-red-600 hover:text-white"
-            >
-              <Trash2 size={15} />
-            </button>
+          {/* Кнопки действий для владельца (справа сверху при наведении) */}
+          {isOwner && (
+            <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              {onEdit && (
+                <button
+                  type="button"
+                  title="Редактировать обложку и название"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit(game);
+                  }}
+                  className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-indigo-600 hover:text-white"
+                >
+                  <Pencil size={14} />
+                </button>
+              )}
+
+              {onDelete && (
+                <button
+                  type="button"
+                  title="Удалить игру"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDelete(game);
+                  }}
+                  className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-red-600 hover:text-white"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
           )}
         </div>
 

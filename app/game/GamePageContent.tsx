@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, Gamepad2, Trash2, Images, HardDrive } from 'lucide-react';
+import { ArrowLeft, Loader2, Gamepad2, Trash2, Images, HardDrive, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -11,6 +11,7 @@ import UploadZone from '@/components/UploadZone';
 import VideoUpload from '@/components/VideoUpload';
 import DownloadZipButton from '@/components/DownloadZipButton';
 import DeleteGameModal from '@/components/DeleteGameModal';
+import EditGameModal from '@/components/EditGameModal';
 import GameSavesSection from '@/components/GameSavesSection';
 import type { Game, Screenshot } from '@/lib/types';
 
@@ -28,6 +29,7 @@ export default function GamePageContent() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Вкладки: Галерея или Сохранения (Saves)
@@ -173,15 +175,26 @@ export default function GamePageContent() {
             <div className="flex items-center gap-3">
               <DownloadZipButton game={game} />
               {user && (
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteModal(true)}
-                  title="Удалить игру и все её материалы"
-                  className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:text-red-300 shrink-0"
-                >
-                  <Trash2 size={16} />
-                  <span>Удалить игру</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(true)}
+                    title="Изменить обложку или название игры"
+                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white shrink-0"
+                  >
+                    <Pencil size={15} />
+                    <span>Изменить обложку</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(true)}
+                    title="Удалить игру и все её материалы"
+                    className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:text-red-300 shrink-0"
+                  >
+                    <Trash2 size={16} />
+                    <span>Удалить игру</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -274,6 +287,18 @@ export default function GamePageContent() {
           />
         )}
       </div>
+
+      {/* Модал редактирования обложки и названия */}
+      {showEditModal && (
+        <EditGameModal
+          game={game}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={(updatedGame) => {
+            setGame(updatedGame);
+            setShowEditModal(false);
+          }}
+        />
+      )}
 
       {/* Модал подтверждения удаления игры */}
       {showDeleteModal && (

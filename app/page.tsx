@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import GameCard from '@/components/GameCard';
 import AddGameModal from '@/components/AddGameModal';
 import DeleteGameModal from '@/components/DeleteGameModal';
+import EditGameModal from '@/components/EditGameModal';
 import type { Game } from '@/lib/types';
 
 export default function HomePage() {
@@ -15,6 +16,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showAddGame, setShowAddGame] = useState(false);
   const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
+  const [gameToEdit, setGameToEdit] = useState<Game | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const supabase = createClient();
 
@@ -155,6 +157,7 @@ export default function HomePage() {
               game={game}
               isOwner={!!user}
               onDelete={(g) => setGameToDelete(g)}
+              onEdit={(g) => setGameToEdit(g)}
             />
           ))}
         </div>
@@ -165,6 +168,20 @@ export default function HomePage() {
         <AddGameModal
           onClose={() => setShowAddGame(false)}
           onAdded={loadGames}
+        />
+      )}
+
+      {/* Модал редактирования игры */}
+      {gameToEdit && (
+        <EditGameModal
+          game={gameToEdit}
+          onClose={() => setGameToEdit(null)}
+          onUpdated={(updatedGame) => {
+            setGames((prev) =>
+              prev.map((g) => (g.id === updatedGame.id ? { ...g, ...updatedGame } : g))
+            );
+            setGameToEdit(null);
+          }}
         />
       )}
 
