@@ -29,7 +29,7 @@ export default function DeleteGameModal({
     try {
       const pathsToRemove: string[] = [];
 
-      // 1. Собираем пути всех скриншотов (только image — Cloudinary видео не удаляем из Storage)
+      // 1. Собираем пути всех скриншотов (только image — Cloudinary видео не в Supabase Storage)
       const { data: screenshots, error: fetchErr } = await supabase
         .from('screenshots')
         .select('storage_path, media_type')
@@ -37,12 +37,27 @@ export default function DeleteGameModal({
 
       if (!fetchErr && screenshots) {
         for (const s of screenshots) {
-          // Пропускаем видео (Cloudinary public_id — не путь в Supabase Storage)
-          if (s.storage_path && s.media_type !== 'video') pathsToRemove.push(s.storage_path);
+          if (s.storage_path && s.media_type !== 'video' && !pathsToRemove.includes(s.storage_path)) {
+            pathsToRemove.push(s.storage_path);
+          }
         }
       }
 
-      // 2. Добавляем обложку игры, если она есть в бакете screenshots
+      // 2. Собираем пути файлов сохранений из таблицы game_saves
+      const { data: saves, error: savesErr } = await supabase
+        .from('game_saves')
+        .select('storage_path')
+        .eq('game_id', game.id);
+
+      if (!savesErr && saves) {
+        for (const save of saves) {
+          if (save.storage_path && !pathsToRemove.includes(save.storage_path)) {
+            pathsToRemove.push(save.storage_path);
+          }
+        }
+      }
+
+      // 3. Добавляем обложку игры, если она есть в бакете screenshots
       if (game.cover_url && game.cover_url.includes('/screenshots/')) {
         const parts = game.cover_url.split('/screenshots/');
         if (parts[1]) {
@@ -53,8 +68,9 @@ export default function DeleteGameModal({
         }
       }
 
-      // 3. Сканируем папку игры в Storage на случай файлов без записей в БД
+      // 4. Сканируем папку игры в Storage на случай файлов без записей в БД
       if (game.slug) {
+        // Папка скриншотов [game_slug]
         const { data: folderFiles } = await supabase.storage
           .from('screenshots')
           .list(game.slug);
@@ -67,9 +83,23 @@ export default function DeleteGameModal({
             }
           }
         }
+
+        // Папка сохранений saves/[game_slug]
+        const { data: saveFiles } = await supabase.storage
+          .from('screenshots')
+          .list(`saves/${game.slug}`);
+
+        if (saveFiles && saveFiles.length > 0) {
+          for (const file of saveFiles) {
+            const p = `saves/${game.slug}/${file.name}`;
+            if (!pathsToRemove.includes(p)) {
+              pathsToRemove.push(p);
+            }
+          }
+        }
       }
 
-      // 4. Удаляем все файлы из Supabase Storage пачками по 50
+      // 5. Удаляем все файлы из Supabase Storage пачками по 50
       if (pathsToRemove.length > 0) {
         setStatusText(`Очистка хранилища (${pathsToRemove.length} файлов)...`);
         for (let i = 0; i < pathsToRemove.length; i += 50) {
@@ -83,7 +113,7 @@ export default function DeleteGameModal({
         }
       }
 
-      // 5. Удаляем игру из БД (связанные скриншоты удалятся каскадно)
+      // 6. Удаляем игру из БД (связанные скриншоты и game_saves удалятся каскадно)
       setStatusText('Удаление игры из базы данных...');
       const { error: deleteErr } = await supabase
         .from('games')
@@ -127,7 +157,7 @@ export default function DeleteGameModal({
         <p className="text-sm text-white/70 leading-relaxed mb-6">
           Вы уверены, что хотите удалить игру{' '}
           <strong className="text-white font-semibold">«{game.title}»</strong>?
-          Все скриншоты, обложка и данные будут полностью удалены из базы данных и облачного хранилища.
+          Все скриншоты, файлы сохранений, обложка и данные будут полностью удалены из базы данных и облачного хранилища.
         </p>
 
         {error && (

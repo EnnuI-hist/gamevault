@@ -9,8 +9,14 @@ CREATE TABLE IF NOT EXISTS public.games (
   title       text NOT NULL,
   slug        text NOT NULL UNIQUE,
   cover_url   text,
+  status      text NOT NULL DEFAULT 'completed' CHECK (status IN ('completed', 'playing', 'planned', 'dropped')),
   created_at  timestamptz DEFAULT now() NOT NULL
 );
+
+-- Миграция на случай, если таблица games уже существовала без status:
+ALTER TABLE public.games 
+ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'completed'
+  CHECK (status IN ('completed', 'playing', 'planned', 'dropped'));
 
 -- 2. Таблица скриншотов
 CREATE TABLE IF NOT EXISTS public.screenshots (
@@ -22,11 +28,32 @@ CREATE TABLE IF NOT EXISTS public.screenshots (
   width        integer,
   height       integer,
   size_bytes   bigint,
+  media_type   text NOT NULL DEFAULT 'image' CHECK (media_type IN ('image', 'video')),
   created_at   timestamptz DEFAULT now() NOT NULL
 );
 
+-- Миграция на случай, если таблица screenshots уже существовала без media_type:
+ALTER TABLE public.screenshots
+ADD COLUMN IF NOT EXISTS media_type text NOT NULL DEFAULT 'image'
+  CHECK (media_type IN ('image', 'video'));
+
 CREATE INDEX IF NOT EXISTS screenshots_game_id_idx ON public.screenshots(game_id);
 CREATE INDEX IF NOT EXISTS screenshots_created_at_idx ON public.screenshots(created_at DESC);
+
+-- 3. Таблица сохранений игр (Game Saves)
+CREATE TABLE IF NOT EXISTS public.game_saves (
+  id           uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  game_id      uuid NOT NULL REFERENCES public.games(id) ON DELETE CASCADE,
+  file_name    text NOT NULL,
+  file_url     text NOT NULL,
+  storage_path text NOT NULL,
+  description  text DEFAULT '',
+  file_size    bigint,
+  created_at   timestamptz DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS game_saves_game_id_idx ON public.game_saves(game_id);
+CREATE INDEX IF NOT EXISTS game_saves_created_at_idx ON public.game_saves(created_at DESC);
 
 -- ============================================================
 -- RLS: включаем Row Level Security
@@ -34,6 +61,7 @@ CREATE INDEX IF NOT EXISTS screenshots_created_at_idx ON public.screenshots(crea
 
 ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.screenshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.game_saves ENABLE ROW LEVEL SECURITY;
 
 -- Удаляем старые политики если есть
 DROP POLICY IF EXISTS "games_public_read"  ON public.games;
@@ -45,6 +73,11 @@ DROP POLICY IF EXISTS "screenshots_public_read"  ON public.screenshots;
 DROP POLICY IF EXISTS "screenshots_owner_insert" ON public.screenshots;
 DROP POLICY IF EXISTS "screenshots_owner_update" ON public.screenshots;
 DROP POLICY IF EXISTS "screenshots_owner_delete" ON public.screenshots;
+
+DROP POLICY IF EXISTS "game_saves_public_read"  ON public.game_saves;
+DROP POLICY IF EXISTS "game_saves_owner_insert" ON public.game_saves;
+DROP POLICY IF EXISTS "game_saves_owner_update" ON public.game_saves;
+DROP POLICY IF EXISTS "game_saves_owner_delete" ON public.game_saves;
 
 -- Games: читают все, пишут только аутентифицированные
 CREATE POLICY "games_public_read"
@@ -78,6 +111,23 @@ CREATE POLICY "screenshots_owner_update"
 
 CREATE POLICY "screenshots_owner_delete"
   ON public.screenshots FOR DELETE
+  USING (auth.role() = 'authenticated');
+
+-- Game Saves: читают все, пишут только аутентифицированные
+CREATE POLICY "game_saves_public_read"
+  ON public.game_saves FOR SELECT
+  USING (true);
+
+CREATE POLICY "game_saves_owner_insert"
+  ON public.game_saves FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "game_saves_owner_update"
+  ON public.game_saves FOR UPDATE
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "game_saves_owner_delete"
+  ON public.game_saves FOR DELETE
   USING (auth.role() = 'authenticated');
 
 -- ============================================================

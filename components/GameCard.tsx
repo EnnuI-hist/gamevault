@@ -3,15 +3,22 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Image as ImageIcon, Trash2 } from 'lucide-react';
-import type { Game } from '@/lib/types';
+import StatusBadge from './StatusBadge';
+import type { Game, GameStatus } from '@/lib/types';
 
 interface GameCardProps {
   game: Game;
   isOwner?: boolean;
   onDelete?: (game: Game) => void;
+  onStatusChange?: (gameId: string, newStatus: GameStatus) => void;
 }
 
-export default function GameCard({ game, isOwner, onDelete }: GameCardProps) {
+export default function GameCard({
+  game,
+  isOwner,
+  onDelete,
+  onStatusChange,
+}: GameCardProps) {
   return (
     <Link href={`/game?slug=${encodeURIComponent(game.slug)}`} className="group block">
       <div className="relative overflow-hidden rounded-xl border border-white/5 bg-[#131720] transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1">
@@ -31,10 +38,20 @@ export default function GameCard({ game, isOwner, onDelete }: GameCardProps) {
             </div>
           )}
 
-          {/* Оверлей при наведении */}
+          {/* Оверлей затемнения снизу при наведении */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-          {/* Кнопка удаления для владельца */}
+          {/* Статус игры (слева сверху) с поддержкой быстрого переключения в 1 клик для владельца */}
+          <div className="absolute left-2 top-2 z-20">
+            <StatusBadge
+              status={game.status || 'completed'}
+              isOwner={isOwner}
+              onStatusChange={(newStatus) => onStatusChange?.(game.id, newStatus)}
+              size="sm"
+            />
+          </div>
+
+          {/* Кнопка удаления для владельца (справа сверху) */}
           {isOwner && onDelete && (
             <button
               type="button"
@@ -44,7 +61,7 @@ export default function GameCard({ game, isOwner, onDelete }: GameCardProps) {
                 e.stopPropagation();
                 onDelete(game);
               }}
-              className="absolute right-2 top-2 z-10 flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 opacity-0 shadow-lg transition-all duration-200 group-hover:opacity-100 hover:bg-red-600 hover:text-white"
+              className="absolute right-2 top-2 z-20 flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 opacity-0 shadow-lg transition-all duration-200 group-hover:opacity-100 hover:bg-red-600 hover:text-white"
             >
               <Trash2 size={15} />
             </button>

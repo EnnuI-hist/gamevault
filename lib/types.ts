@@ -1,8 +1,11 @@
+export type GameStatus = 'completed' | 'playing' | 'planned' | 'dropped';
+
 export interface Game {
   id: string;
   title: string;
   slug: string;
   cover_url: string | null;
+  status: GameStatus;
   created_at: string;
   screenshot_count?: number;
 }
@@ -18,6 +21,17 @@ export interface Screenshot {
   size_bytes: number | null;
   created_at: string;
   media_type: 'image' | 'video';
+}
+
+export interface GameSave {
+  id: string;
+  game_id: string;
+  file_name: string;
+  file_url: string;
+  storage_path: string;
+  description: string;
+  file_size: number | null;
+  created_at: string;
 }
 
 export interface UploadProgress {

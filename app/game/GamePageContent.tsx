@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, Gamepad2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Gamepad2, Trash2, Images, HardDrive } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -11,7 +11,9 @@ import UploadZone from '@/components/UploadZone';
 import VideoUpload from '@/components/VideoUpload';
 import DownloadZipButton from '@/components/DownloadZipButton';
 import DeleteGameModal from '@/components/DeleteGameModal';
-import type { Game, Screenshot } from '@/lib/types';
+import StatusBadge from '@/components/StatusBadge';
+import GameSavesSection from '@/components/GameSavesSection';
+import type { Game, Screenshot, GameStatus } from '@/lib/types';
 
 const PAGE_SIZE = 30;
 
@@ -28,6 +30,10 @@ export default function GamePageContent() {
   const [notFound, setNotFound] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Вкладки: Галерея или Сохранения (Saves)
+  const [activeTab, setActiveTab] = useState<'gallery' | 'saves'>('gallery');
+  const [savesCount, setSavesCount] = useState(0);
 
   const supabase = createClient();
 
@@ -55,7 +61,10 @@ export default function GamePageContent() {
         return;
       }
 
-      setGame(gameData);
+      setGame({
+        ...gameData,
+        status: (gameData.status as GameStatus) || 'completed',
+      });
 
       // 2. Загружаем скриншоты
       const { data: shotsData } = await supabase
@@ -72,11 +81,25 @@ export default function GamePageContent() {
 
       setScreenshots((shotsData ?? []) as Screenshot[]);
       setHasMore((count ?? 0) > PAGE_SIZE);
+
+      // 3. Загружаем количество сохранений
+      const { count: savesTotal } = await supabase
+        .from('game_saves')
+        .select('*', { count: 'exact', head: true })
+        .eq('game_id', gameData.id);
+
+      setSavesCount(savesTotal ?? 0);
       setLoading(false);
     };
 
     loadGameData();
-  }, [slug, refreshKey]);
+  }, [slug, refreshKey, supabase]);
+
+  const handleStatusChange = async (newStatus: GameStatus) => {
+    if (!game) return;
+    setGame((prev) => (prev ? { ...prev, status: newStatus } : null));
+    await supabase.from('games').update({ status: newStatus }).eq('id', game.id);
+  };
 
   if (loading) {
     return (
@@ -146,11 +169,21 @@ export default function GamePageContent() {
                 </div>
               )}
               <div>
-                <h1 className="text-3xl font-bold text-white">{game.title}</h1>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="text-3xl font-bold text-white">{game.title}</h1>
+                  <StatusBadge
+                    status={game.status || 'completed'}
+                    isOwner={!!user}
+                    onStatusChange={handleStatusChange}
+                    size="md"
+                  />
+                </div>
                 <p className="mt-1 text-sm text-white/40">
-                  {screenshots.length > 0
-                    ? `${screenshots.length}+ скриншотов`
-                    : 'Скриншотов пока нет'}
+                  {screenshots.length}{' '}
+                  {pluralScreenshots(screenshots.length)}
+                  {' • '}
+                  {savesCount}{' '}
+                  {pluralSaves(savesCount)}
                 </p>
               </div>
             </div>
@@ -161,7 +194,7 @@ export default function GamePageContent() {
                 <button
                   type="button"
                   onClick={() => setShowDeleteModal(true)}
-                  title="Удалить игру и все её скриншоты"
+                  title="Удалить игру и все её материалы"
                   className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:text-red-300 shrink-0"
                 >
                   <Trash2 size={16} />
@@ -173,29 +206,91 @@ export default function GamePageContent() {
         </div>
       </div>
 
-      {/* Контент */}
+      {/* Основной контент с вкладками */}
       <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
-        {user && (
-          <>
-            <UploadZone
+        {/* Вкладки переключения: Галерея vs Сохранения */}
+        <div className="mb-6 flex items-center gap-2 border-b border-white/10 pb-3">
+          <button
+            type="button"
+            onClick={() => setActiveTab('gallery')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+              activeTab === 'gallery'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                : 'text-white/60 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <Images size={16} />
+            <span>Галерея</span>
+            <span
+              className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+                activeTab === 'gallery'
+                  ? 'bg-black/25 text-white'
+                  : 'bg-white/10 text-white/50'
+              }`}
+            >
+              {screenshots.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('saves')}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+              activeTab === 'saves'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                : 'text-white/60 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <HardDrive size={16} />
+            <span>Сохранения (Saves)</span>
+            <span
+              className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+                activeTab === 'saves'
+                  ? 'bg-black/25 text-white'
+                  : 'bg-white/10 text-white/50'
+              }`}
+            >
+              {savesCount}
+            </span>
+          </button>
+        </div>
+
+        {/* Содержимое вкладки Галерея */}
+        {activeTab === 'gallery' && (
+          <div>
+            {user && (
+              <>
+                <UploadZone
+                  gameId={game.id}
+                  gameSlug={game.slug}
+                  onUploaded={() => setRefreshKey((k) => k + 1)}
+                />
+                <VideoUpload
+                  gameId={game.id}
+                  onUploaded={() => setRefreshKey((k) => k + 1)}
+                />
+              </>
+            )}
+
+            <ScreenshotGrid
+              key={refreshKey}
               gameId={game.id}
-              gameSlug={game.slug}
-              onUploaded={() => setRefreshKey((k) => k + 1)}
+              isOwner={!!user}
+              initialScreenshots={screenshots}
+              initialHasMore={hasMore}
             />
-            <VideoUpload
-              gameId={game.id}
-              onUploaded={() => setRefreshKey((k) => k + 1)}
-            />
-          </>
+          </div>
         )}
 
-        <ScreenshotGrid
-          key={refreshKey}
-          gameId={game.id}
-          isOwner={!!user}
-          initialScreenshots={screenshots}
-          initialHasMore={hasMore}
-        />
+        {/* Содержимое вкладки Сохранения (Saves) */}
+        {activeTab === 'saves' && (
+          <GameSavesSection
+            gameId={game.id}
+            gameSlug={game.slug}
+            isOwner={!!user}
+            onSaveCountChange={(count) => setSavesCount(count)}
+          />
+        )}
       </div>
 
       {/* Модал подтверждения удаления игры */}
@@ -211,4 +306,16 @@ export default function GamePageContent() {
       )}
     </div>
   );
+}
+
+function pluralScreenshots(n: number): string {
+  if (n % 10 === 1 && n % 100 !== 11) return 'скриншот';
+  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'скриншота';
+  return 'скриншотов';
+}
+
+function pluralSaves(n: number): string {
+  if (n % 10 === 1 && n % 100 !== 11) return 'сохранение';
+  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'сохранения';
+  return 'сохранений';
 }

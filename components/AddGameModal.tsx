@@ -5,6 +5,8 @@ import { X, Plus, Upload, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
+import { STATUS_LIST } from './StatusBadge';
+import type { GameStatus } from '@/lib/types';
 
 interface AddGameModalProps {
   onClose: () => void;
@@ -13,6 +15,7 @@ interface AddGameModalProps {
 
 export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
   const [title, setTitle] = useState('');
+  const [status, setStatus] = useState<GameStatus>('completed');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,6 +56,7 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
         title: title.trim(),
         slug: slugify(title),
         cover_url,
+        status,
       });
 
       if (dbErr) throw dbErr;
@@ -71,7 +75,7 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#131720] p-6 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#131720] p-6 shadow-2xl">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
@@ -92,6 +96,32 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
               placeholder="Elden Ring"
               className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
+          </div>
+
+          {/* Выбор статуса игры */}
+          <div>
+            <label className="mb-1.5 block text-sm text-white/60">Статус прохождения</label>
+            <div className="grid grid-cols-2 gap-2">
+              {STATUS_LIST.map((item) => {
+                const ItemIcon = item.icon;
+                const isSelected = status === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setStatus(item.value)}
+                    className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-medium transition-all ${
+                      isSelected
+                        ? `${item.badgeClass} ring-1 ring-white/20 shadow-md`
+                        : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <ItemIcon size={16} className={item.textClass} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>
