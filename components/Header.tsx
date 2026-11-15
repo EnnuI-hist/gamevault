@@ -20,11 +20,11 @@ export default function Header() {
       <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0a0c10]/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
           {/* Логотип */}
-          <Link href="/" prefetch={false} className="flex items-center gap-2 group shrink-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 group-hover:bg-indigo-500 transition-colors">
+          <Link href="/" prefetch={false} className="flex items-center gap-2.5 group shrink-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 shadow-[0_0_12px_rgba(245,158,11,0.3)] group-hover:from-amber-400 group-hover:to-amber-600 transition-all">
               <Gamepad2 size={18} className="text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-white hidden xs:inline sm:inline">
+            <span className="font-fantasy text-xl font-black tracking-wider text-amber-100 hidden xs:inline sm:inline">
               GameVault
             </span>
           </Link>
@@ -36,7 +36,7 @@ export default function Header() {
               prefetch={false}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
                 isShowcase
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-amber-600 text-white shadow-sm shadow-amber-950/40'
                   : 'text-white/60 hover:bg-white/5 hover:text-white'
               }`}
             >
@@ -49,7 +49,7 @@ export default function Header() {
               prefetch={false}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
                 isList
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-amber-600 text-white shadow-sm shadow-amber-950/40'
                   : 'text-white/60 hover:bg-white/5 hover:text-white'
               }`}
             >
@@ -78,7 +78,7 @@ export default function Header() {
               ) : (
                 <button
                   onClick={() => setShowAuth(true)}
-                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs sm:text-sm font-medium text-white transition hover:bg-indigo-500"
+                  className="flex items-center gap-2 rounded-lg bg-amber-600 px-3.5 py-1.5 text-xs sm:text-sm font-medium text-white transition hover:bg-amber-500 shadow-md shadow-amber-950/40"
                 >
                   <LogIn size={14} />
                   Войти

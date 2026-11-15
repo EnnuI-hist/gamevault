@@ -40,6 +40,7 @@ export interface BacklogItem {
   status: GameStatus;
   note: string;
   cover_url: string | null;
+  badge?: string | null;
   created_at: string;
 }
 

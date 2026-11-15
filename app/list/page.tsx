@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import {
   Plus,
   Search,
@@ -10,24 +11,35 @@ import {
   Clock,
   XCircle,
   Trash2,
-  Edit3,
   Check,
   MessageSquare,
   MessageSquarePlus,
   Loader2,
   ImagePlus,
-  ImageIcon,
   Upload,
   Link as LinkIcon,
+  Crown,
   Sparkles,
+  ArrowUpRight,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import StatusBadge, { STATUS_LIST } from '@/components/StatusBadge';
+import TiltCard from '@/components/TiltCard';
 import type { BacklogItem, GameStatus } from '@/lib/types';
 
 type FilterType = 'all' | GameStatus;
+
+const BADGE_PRESETS = [
+  { label: '👑 Шедевр', value: '👑 Шедевр' },
+  { label: '🏆 Платина / 100%', value: '🏆 Платина / 100%' },
+  { label: '⚔️ Топ боёвка', value: '⚔️ Топ боёвка' },
+  { label: '📜 Лучший сюжет', value: '📜 Лучший сюжет' },
+  { label: '💎 Скрытый алмаз', value: '💎 Скрытый алмаз' },
+  { label: '🌌 Атмосфера 10/10', value: '🌌 Атмосфера 10/10' },
+  { label: '🔥 Игра года', value: '🔥 Игра года' },
+];
 
 /** Конвертирует изображение в WebP через Canvas с качеством 0.92 */
 async function compressCoverToWebP(file: File): Promise<Blob> {
@@ -71,6 +83,10 @@ export default function BacklogPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [vaultStats, setVaultStats] = useState<{ screenshots: number; saves: number }>({
+    screenshots: 0,
+    saves: 0,
+  });
 
   // Форма добавления игры
   const [newTitle, setNewTitle] = useState('');
@@ -104,6 +120,12 @@ export default function BacklogPage() {
   const [noteInputDraft, setNoteInputDraft] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
 
+  // Модалка награды / Зал славы
+  const [badgeModalItem, setBadgeModalItem] = useState<BacklogItem | null>(null);
+  const [selectedBadge, setSelectedBadge] = useState('');
+  const [customBadgeInput, setCustomBadgeInput] = useState('');
+  const [isSavingBadge, setIsSavingBadge] = useState(false);
+
   const supabase = createClient();
 
   const loadBacklog = async () => {
@@ -119,12 +141,29 @@ export default function BacklogPage() {
     setLoading(false);
   };
 
+  const fetchVaultStats = async () => {
+    try {
+      const [scRes, svRes] = await Promise.all([
+        supabase.from('screenshots').select('id', { count: 'exact', head: true }),
+        supabase.from('game_saves').select('id', { count: 'exact', head: true }),
+      ]);
+      setVaultStats({
+        screenshots: scRes.count ?? 0,
+        saves: svRes.count ?? 0,
+      });
+    } catch (e) {
+      console.warn('Ошибка загрузки статистики хранилища:', e);
+    }
+  };
+
   useEffect(() => {
     loadBacklog();
+    fetchVaultStats();
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         loadBacklog();
+        fetchVaultStats();
       }
     };
 
@@ -135,7 +174,7 @@ export default function BacklogPage() {
       window.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', loadBacklog);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Вставка обложки из буфера по Ctrl+V при открытой форме или модалке
@@ -149,13 +188,11 @@ export default function BacklogPage() {
       if (!file) return;
 
       if (coverModalItem) {
-        // Если открыто модальное окно обложки
         setCoverFileInput(file);
         setCoverPreview(URL.createObjectURL(file));
         setCoverTab('upload');
         setCoverError('');
       } else if (user) {
-        // Если активна форма создания
         setNewCoverFile(file);
         setNewCoverPreview(URL.createObjectURL(file));
         setCoverSourceType('file');
@@ -178,7 +215,6 @@ export default function BacklogPage() {
     try {
       let finalCoverUrl: string | null = null;
 
-      // Загрузка файла обложки, если выбран
       if (coverSourceType === 'file' && newCoverFile) {
         const compressed = await compressCoverToWebP(newCoverFile);
         const path = `backlog-covers/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
@@ -260,7 +296,6 @@ export default function BacklogPage() {
 
     setItems((prev) => prev.filter((i) => i.id !== item.id));
 
-    // Если была обложка в storage, подчистим
     if (item.cover_url && item.cover_url.includes('/backlog-covers/')) {
       try {
         const parts = item.cover_url.split('/screenshots/');
@@ -332,7 +367,6 @@ export default function BacklogPage() {
 
           finalCoverUrl = publicUrl;
 
-          // Удаляем старую обложку из хранилища
           if (
             coverModalItem.cover_url &&
             coverModalItem.cover_url.includes('/backlog-covers/')
@@ -447,6 +481,45 @@ export default function BacklogPage() {
     }
   };
 
+  // Управление модалкой наград (Зал Славы)
+  const openBadgeModal = (item: BacklogItem) => {
+    setBadgeModalItem(item);
+    setSelectedBadge(item.badge || '');
+    setCustomBadgeInput(
+      item.badge && !BADGE_PRESETS.some((p) => p.value === item.badge)
+        ? item.badge
+        : ''
+    );
+  };
+
+  const handleSaveBadge = async (badgeValue: string | null) => {
+    if (!badgeModalItem) return;
+    setIsSavingBadge(true);
+    const cleanBadge = badgeValue?.trim() || null;
+
+    try {
+      const { error } = await supabase
+        .from('game_backlog')
+        .update({ badge: cleanBadge })
+        .eq('id', badgeModalItem.id);
+
+      if (error) throw error;
+
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === badgeModalItem.id ? { ...i, badge: cleanBadge } : i
+        )
+      );
+
+      setBadgeModalItem(null);
+    } catch (err) {
+      console.error('Ошибка сохранения награды:', err);
+      alert('Не удалось сохранить награду');
+    } finally {
+      setIsSavingBadge(false);
+    }
+  };
+
   // Счётчики
   const counts = useMemo(() => {
     return {
@@ -457,6 +530,13 @@ export default function BacklogPage() {
       dropped: items.filter((i) => i.status === 'dropped').length,
     };
   }, [items]);
+
+  const completedPercentage =
+    counts.all > 0 ? Math.round((counts.completed / counts.all) * 100) : 0;
+  const compPct = counts.all > 0 ? (counts.completed / counts.all) * 100 : 0;
+  const playPct = counts.all > 0 ? (counts.playing / counts.all) * 100 : 0;
+  const planPct = counts.all > 0 ? (counts.planned / counts.all) * 100 : 0;
+  const dropPct = counts.all > 0 ? (counts.dropped / counts.all) * 100 : 0;
 
   // Фильтрация и поиск
   const filteredItems = useMemo(() => {
@@ -517,25 +597,195 @@ export default function BacklogPage() {
     },
   ];
 
+  // Специфический статус-ореол постера
+  const getStatusGlow = (status: GameStatus) => {
+    switch (status) {
+      case 'completed':
+        return 'border border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.22)] ring-1 ring-emerald-400/25';
+      case 'playing':
+        return 'border border-amber-500/60 shadow-[0_0_22px_rgba(245,158,11,0.28)] ring-1 ring-amber-400/30';
+      case 'planned':
+        return 'border border-sky-500/40 shadow-[0_0_16px_rgba(56,189,248,0.18)] ring-1 ring-sky-400/20';
+      case 'dropped':
+        return 'border border-rose-500/35 shadow-[0_0_12px_rgba(244,63,94,0.14)] ring-1 ring-rose-400/15';
+      default:
+        return 'border border-white/10';
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       {/* Шапка страницы трекера */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight text-white">
+          <div className="flex items-center gap-2.5">
+            <h1 className="font-fantasy text-3xl sm:text-4xl font-extrabold tracking-wide text-white">
               Список игр
             </h1>
-            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-400">
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-mono font-medium text-amber-300">
               <Sparkles size={12} />
-              Галерея постеров
+              Dark Fantasy Showcase
             </span>
           </div>
-          <p className="mt-1 text-sm text-white/40">
+          <p className="mt-1 font-mono text-sm text-white/40">
             {items.length > 0
-              ? `${items.length} ${pluralGames(items.length)} в вашем списке`
-              : 'Список пуст'}
+              ? `${items.length} ${pluralGames(items.length)} в коллекции`
+              : 'Коллекция пуста'}
           </p>
+        </div>
+      </div>
+
+      {/* Bento-панель статистики (Steam Big Picture / Dark Fantasy) */}
+      <div className="mb-8 rounded-2xl border border-white/10 bg-gradient-to-br from-[#0e121a]/95 via-[#0b0e15]/95 to-[#080a0f]/95 p-5 shadow-2xl backdrop-blur-xl">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          {/* Блок 1: Прогресс прохождения библиотеки */}
+          <div className="md:col-span-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider text-white/50 font-medium">
+                Прогресс трекера
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-mono text-emerald-400">
+                {counts.completed} / {counts.all}
+              </span>
+            </div>
+            <div className="my-3 flex items-baseline gap-2">
+              <span className="font-fantasy text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-200 to-amber-400 tracking-tight">
+                {completedPercentage}%
+              </span>
+              <span className="text-xs text-white/40">пройдено</span>
+            </div>
+            <div className="text-[11px] text-white/40">
+              {counts.playing > 0 ? (
+                <span>
+                  🔥 Сейчас в процессе:{' '}
+                  <strong className="font-mono text-amber-300">{counts.playing}</strong>
+                </span>
+              ) : (
+                <span>
+                  {counts.all === 0
+                    ? 'Добавьте первую игру в список'
+                    : 'Все начатые игры пройдены!'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Блок 2: Сегментированный прогресс-бар по 4 статусам */}
+          <div className="md:col-span-5 rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs uppercase tracking-wider text-white/50 font-medium">
+                Статусы коллекции
+              </span>
+              <span className="font-mono text-xs text-white/40">
+                {counts.all} {pluralGames(counts.all)}
+              </span>
+            </div>
+
+            {/* Сегментированная полоса прогресса */}
+            <div className="h-3 w-full overflow-hidden rounded-full bg-white/5 flex p-0.5 gap-0.5 border border-white/5">
+              {counts.all > 0 ? (
+                <>
+                  {compPct > 0 && (
+                    <div
+                      style={{ width: `${compPct}%` }}
+                      title={`Пройдено: ${counts.completed} (${Math.round(compPct)}%)`}
+                      className="h-full rounded-l-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                    />
+                  )}
+                  {playPct > 0 && (
+                    <div
+                      style={{ width: `${playPct}%` }}
+                      title={`Прохожу: ${counts.playing} (${Math.round(playPct)}%)`}
+                      className="h-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                    />
+                  )}
+                  {planPct > 0 && (
+                    <div
+                      style={{ width: `${planPct}%` }}
+                      title={`В планах: ${counts.planned} (${Math.round(planPct)}%)`}
+                      className="h-full bg-gradient-to-r from-sky-600 to-sky-400 transition-all duration-500 shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+                    />
+                  )}
+                  {dropPct > 0 && (
+                    <div
+                      style={{ width: `${dropPct}%` }}
+                      title={`Дропнуто: ${counts.dropped} (${Math.round(dropPct)}%)`}
+                      className="h-full rounded-r-full bg-gradient-to-r from-rose-600 to-rose-400 transition-all duration-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
+                    />
+                  )}
+                </>
+              ) : (
+                <div className="h-full w-full rounded-full bg-white/10" />
+              )}
+            </div>
+
+            {/* Легенда */}
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                <span className="text-white/60 truncate">Пройдено:</span>
+                <span className="font-mono font-semibold text-emerald-400">
+                  {counts.completed}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                <span className="text-white/60 truncate">Прохожу:</span>
+                <span className="font-mono font-semibold text-amber-400">
+                  {counts.playing}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-sky-400 shrink-0" />
+                <span className="text-white/60 truncate">В планах:</span>
+                <span className="font-mono font-semibold text-sky-400">
+                  {counts.planned}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-rose-400 shrink-0" />
+                <span className="text-white/60 truncate">Дроп:</span>
+                <span className="font-mono font-semibold text-rose-400">
+                  {counts.dropped}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Блок 3: Хранилище GameVault (2K Скриншоты и Сейвы) */}
+          <div className="md:col-span-3 rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider text-white/50 font-medium">
+                Хранилище Vault
+              </span>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-0.5 text-[11px] text-amber-400/80 hover:text-amber-300 transition-colors"
+              >
+                <span>Витрина</span>
+                <ArrowUpRight size={12} />
+              </Link>
+            </div>
+
+            <div className="my-2 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-black/30 p-2 border border-white/5">
+                <p className="font-mono text-xl font-bold text-amber-300">
+                  {vaultStats.screenshots}
+                </p>
+                <p className="text-[10px] text-white/40">2K скринов/видео</p>
+              </div>
+              <div className="rounded-lg bg-black/30 p-2 border border-white/5">
+                <p className="font-mono text-xl font-bold text-indigo-300">
+                  {vaultStats.saves}
+                </p>
+                <p className="text-[10px] text-white/40">бэкапов сейвов</p>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-white/40 truncate">
+              Полноразмерные медиа и бэкапы
+            </p>
+          </div>
         </div>
       </div>
 
@@ -543,7 +793,7 @@ export default function BacklogPage() {
       {user && (
         <form
           onSubmit={handleAddGame}
-          className="mb-8 rounded-2xl border border-white/10 bg-[#131720] p-4 sm:p-5 shadow-xl backdrop-blur-sm space-y-3.5"
+          className="mb-8 rounded-2xl border border-white/10 bg-[#10141d]/90 p-4 sm:p-5 shadow-xl backdrop-blur-sm space-y-3.5"
         >
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
             {/* Название игры */}
@@ -555,7 +805,7 @@ export default function BacklogPage() {
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Название игры... (нажми Enter для добавления)"
                 required
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
               />
             </div>
 
@@ -588,7 +838,7 @@ export default function BacklogPage() {
               onClick={() => setShowCoverInputs((prev) => !prev)}
               className={`flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-medium transition-all shrink-0 ${
                 newCoverPreview || newCoverUrl.trim()
-                  ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-300'
+                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
                   : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -604,7 +854,7 @@ export default function BacklogPage() {
             <button
               type="submit"
               disabled={isAdding || !newTitle.trim()}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50 shrink-0"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-50 shrink-0 shadow-lg shadow-amber-950/40"
             >
               {isAdding ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -625,7 +875,7 @@ export default function BacklogPage() {
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Заметка или оценка (например: 9/10, шедевр)..."
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
                 />
               </div>
 
@@ -672,7 +922,7 @@ export default function BacklogPage() {
                     }
                   }}
                   placeholder="Или вставьте URL ссылки..."
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
                 />
               </div>
 
@@ -725,10 +975,15 @@ export default function BacklogPage() {
                     : 'border border-white/5 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {Icon && <Icon size={14} className={isActive ? 'text-white' : 'text-white/60'} />}
+                {Icon && (
+                  <Icon
+                    size={14}
+                    className={isActive ? 'text-white' : 'text-white/60'}
+                  />
+                )}
                 <span>{tab.label}</span>
                 <span
-                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+                  className={`rounded-md px-1.5 py-0.5 text-[11px] font-mono font-semibold ${
                     isActive
                       ? 'bg-black/25 text-white'
                       : 'bg-white/10 text-white/50'
@@ -752,7 +1007,7 @@ export default function BacklogPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Поиск по названию и заметкам..."
-            className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+            className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
           />
           {searchQuery && (
             <button
@@ -767,7 +1022,7 @@ export default function BacklogPage() {
         </div>
       </div>
 
-      {/* Адаптивная сетка вертикальных постеров 2:3 */}
+      {/* Адаптивная сетка вертикальных постеров 2:3 с 3D Tilt и подсветкой */}
       {loading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 12 }).map((_, i) => (
@@ -785,7 +1040,7 @@ export default function BacklogPage() {
           <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
             <Gamepad2 size={36} className="text-white/30" />
           </div>
-          <h2 className="text-xl font-semibold text-white/60">Список пуст</h2>
+          <h2 className="font-fantasy text-xl font-semibold text-white/60">Список пуст</h2>
           <p className="mt-2 text-sm text-white/30">
             {user
               ? 'Добавьте первую игру через форму сверху'
@@ -797,7 +1052,7 @@ export default function BacklogPage() {
           <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-white/30">
             <Search size={26} />
           </div>
-          <h3 className="text-base font-semibold text-white/80">Ничего не найдено</h3>
+          <h3 className="font-fantasy text-base font-semibold text-white/80">Ничего не найдено</h3>
           <p className="mt-1 text-sm text-white/40">
             {searchQuery
               ? `По запросу «${searchQuery}» нет совпадений`
@@ -819,119 +1074,159 @@ export default function BacklogPage() {
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="group relative flex flex-col overflow-hidden rounded-xl border border-white/5 bg-[#131720] transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1"
-            >
-              {/* Постер 2:3 */}
-              <div className="relative aspect-[2/3] w-full overflow-hidden">
-                {item.cover_url ? (
-                  <Image
-                    src={item.cover_url}
-                    alt={item.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                  />
-                ) : (
-                  /* Стильная карточка-заглушка 2:3 с градиентом и названием игры */
-                  <div className="flex h-full w-full flex-col items-center justify-between p-4 text-center bg-gradient-to-br from-indigo-950/80 via-slate-900 to-[#131720] border border-white/5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/30 mt-4">
-                      <Gamepad2 size={20} />
-                    </div>
-
-                    <p className="font-bold text-white text-sm sm:text-base leading-snug line-clamp-3 px-1">
-                      {item.title}
-                    </p>
-
-                    {user ? (
-                      <button
-                        type="button"
-                        onClick={() => openCoverModal(item)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 text-white px-2.5 py-1 text-xs font-medium shadow-lg mb-2"
-                      >
-                        <ImagePlus size={13} />
-                        <span>Обложка</span>
-                      </button>
-                    ) : (
-                      <div className="h-6" />
-                    )}
-                  </div>
-                )}
-
-                {/* Оверлей при наведении */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
-
-                {/* Бейдж статуса (слева сверху) с мгновенным переключением в 1 клик для владельца */}
-                <div className="absolute left-2 top-2 z-20">
-                  <StatusBadge
-                    status={item.status}
-                    isOwner={!!user}
-                    onStatusChange={(newStatus) => handleStatusChange(item.id, newStatus)}
-                    size="sm"
-                  />
-                </div>
-
-                {/* Кнопки действий владельца (справа сверху при наведении) */}
-                {user && (
-                  <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                    <button
-                      type="button"
-                      title="Сменить обложку"
-                      onClick={() => openCoverModal(item)}
-                      className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-indigo-600 hover:text-white"
-                    >
-                      <ImagePlus size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      title="Удалить из списка"
-                      onClick={() => handleDelete(item)}
-                      className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-red-600 hover:text-white"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Нижняя часть карточки: Название и Заметка */}
-              <div className="p-3 flex flex-col gap-1.5 flex-1 justify-between">
-                <div>
-                  <h3
-                    className="truncate text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors"
-                    title={item.title}
-                  >
-                    {item.title}
-                  </h3>
-
-                  {/* Заметка / Оценка */}
-                  {item.note ? (
-                    <div
-                      onClick={() => user && openNoteModal(item)}
-                      className={`mt-1.5 flex items-center gap-1.5 rounded-lg bg-white/5 px-2 py-1 text-[11px] text-white/70 ${
-                        user ? 'cursor-pointer hover:bg-white/10 hover:text-white' : ''
+            <div key={item.id} className="group relative">
+              <TiltCard
+                coverUrl={item.cover_url}
+                statusGlowClass={getStatusGlow(item.status)}
+                className="h-full flex flex-col justify-between"
+              >
+                {/* Постер 2:3 */}
+                <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#0a0d13]">
+                  {item.cover_url ? (
+                    <Image
+                      src={item.cover_url}
+                      alt={item.title}
+                      fill
+                      className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
+                        item.status === 'dropped'
+                          ? 'saturate-50 opacity-80 group-hover:saturate-75 group-hover:opacity-100'
+                          : ''
                       }`}
-                      title={user ? 'Нажмите для изменения заметки' : item.note}
-                    >
-                      <MessageSquare size={11} className="text-indigo-400 shrink-0" />
-                      <span className="truncate">{item.note}</span>
-                    </div>
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    />
                   ) : (
-                    user && (
+                    /* Стильная карточка-заглушка 2:3 с темным фэнтези градиентом */
+                    <div className="flex h-full w-full flex-col items-center justify-between p-4 text-center bg-gradient-to-br from-indigo-950/80 via-slate-900 to-[#10141d]">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/30 mt-4">
+                        <Gamepad2 size={20} />
+                      </div>
+
+                      <p className="font-fantasy font-bold text-white text-sm sm:text-base leading-snug line-clamp-3 px-1">
+                        {item.title}
+                      </p>
+
+                      {user ? (
+                        <button
+                          type="button"
+                          onClick={() => openCoverModal(item)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-white px-2.5 py-1 text-xs font-medium shadow-lg mb-2"
+                        >
+                          <ImagePlus size={13} />
+                          <span>Обложка</span>
+                        </button>
+                      ) : (
+                        <div className="h-6" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Оверлей при наведении */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+
+                  {/* Бейдж статуса (слева сверху) с мгновенным переключением в 1 клик для владельца */}
+                  <div className="absolute left-2 top-2 z-20">
+                    <StatusBadge
+                      status={item.status}
+                      isOwner={!!user}
+                      onStatusChange={(newStatus) =>
+                        handleStatusChange(item.id, newStatus)
+                      }
+                      size="sm"
+                    />
+                  </div>
+
+                  {/* Кнопки действий владельца (справа сверху при наведении) */}
+                  {user && (
+                    <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                       <button
                         type="button"
-                        onClick={() => openNoteModal(item)}
-                        className="mt-1 flex items-center gap-1 text-[11px] text-white/30 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Присвоить награду (Зал Славы)"
+                        onClick={() => openBadgeModal(item)}
+                        className={`flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 shadow-lg transition hover:bg-amber-600 hover:text-white ${
+                          item.badge
+                            ? 'text-amber-300 ring-1 ring-amber-400/40'
+                            : 'text-white/70'
+                        }`}
                       >
-                        <MessageSquarePlus size={11} />
-                        <span>+ заметка</span>
+                        <Crown size={14} />
                       </button>
-                    )
+
+                      <button
+                        type="button"
+                        title="Сменить обложку"
+                        onClick={() => openCoverModal(item)}
+                        className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-amber-600 hover:text-white"
+                      >
+                        <ImagePlus size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        title="Удалить из списка"
+                        onClick={() => handleDelete(item)}
+                        className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-red-600 hover:text-white"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Медалька / Награда на постере («Зал Славы») */}
+                  {item.badge && (
+                    <div className="absolute bottom-2 left-2 right-2 z-20 flex justify-center pointer-events-none">
+                      <div className="badge-gold-shimmer rounded-lg border border-yellow-200/90 px-2.5 py-0.5 text-center shadow-[0_2px_12px_rgba(245,158,11,0.5)] backdrop-blur-md">
+                        <span className="font-fantasy text-xs font-black tracking-wide text-amber-950 drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)] flex items-center justify-center gap-1">
+                          {item.badge}
+                        </span>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
+
+                {/* Нижняя часть карточки: Название и Заметка */}
+                <div className="p-3 bg-[#0d1017]/95 border-t border-white/5 flex flex-col gap-1.5 flex-1 justify-between">
+                  <div>
+                    <h3
+                      className="truncate font-fantasy text-sm font-bold text-white group-hover:text-amber-300 transition-colors tracking-wide"
+                      title={item.title}
+                    >
+                      {item.title}
+                    </h3>
+
+                    {/* Заметка / Оценка */}
+                    {item.note ? (
+                      <div
+                        onClick={() => user && openNoteModal(item)}
+                        className={`mt-1.5 flex items-center gap-1.5 rounded-lg bg-white/5 px-2 py-1 text-[11px] text-white/70 ${
+                          user
+                            ? 'cursor-pointer hover:bg-white/10 hover:text-white'
+                            : ''
+                        }`}
+                        title={
+                          user ? 'Нажмите для изменения заметки' : item.note
+                        }
+                      >
+                        <MessageSquare
+                          size={11}
+                          className="text-amber-400 shrink-0"
+                        />
+                        <span className="truncate">{item.note}</span>
+                      </div>
+                    ) : (
+                      user && (
+                        <button
+                          type="button"
+                          onClick={() => openNoteModal(item)}
+                          className="mt-1 flex items-center gap-1 text-[11px] text-white/30 hover:text-amber-300 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <MessageSquarePlus size={11} />
+                          <span>+ заметка</span>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              </TiltCard>
             </div>
           ))}
         </div>
@@ -940,10 +1235,12 @@ export default function BacklogPage() {
       {/* Модалка изменения обложки */}
       {coverModalItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
-          onClick={(e) => !isSavingCover && e.target === e.currentTarget && closeCoverModal()}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={(e) =>
+            !isSavingCover && e.target === e.currentTarget && closeCoverModal()
+          }
         >
-          <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#131720] p-6 shadow-2xl">
+          <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#10141d] p-6 shadow-2xl">
             <button
               onClick={closeCoverModal}
               disabled={isSavingCover}
@@ -952,10 +1249,10 @@ export default function BacklogPage() {
               <X size={18} />
             </button>
 
-            <h2 className="text-lg font-bold text-white mb-1">
+            <h2 className="font-fantasy text-lg font-bold text-white mb-1">
               Обложка игры
             </h2>
-            <p className="text-xs text-white/40 mb-5 truncate">
+            <p className="text-xs text-white/40 mb-5 truncate font-mono">
               {coverModalItem.title}
             </p>
 
@@ -966,7 +1263,7 @@ export default function BacklogPage() {
                 onClick={() => setCoverTab('upload')}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-medium transition-all ${
                   coverTab === 'upload'
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-amber-600 text-white shadow-sm'
                     : 'text-white/60 hover:text-white'
                 }`}
               >
@@ -978,7 +1275,7 @@ export default function BacklogPage() {
                 onClick={() => setCoverTab('url')}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-medium transition-all ${
                   coverTab === 'url'
-                    ? 'bg-indigo-600 text-white shadow-sm'
+                    ? 'bg-amber-600 text-white shadow-sm'
                     : 'text-white/60 hover:text-white'
                 }`}
               >
@@ -1007,7 +1304,7 @@ export default function BacklogPage() {
 
                 <div
                   onClick={() => editFileInputRef.current?.click()}
-                  className="relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-white/[0.02] p-6 hover:border-indigo-500/50 hover:bg-white/5 transition-all text-center"
+                  className="relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-white/[0.02] p-6 hover:border-amber-500/50 hover:bg-white/5 transition-all text-center"
                 >
                   <Upload size={24} className="text-white/40" />
                   <p className="text-xs font-medium text-white/70">
@@ -1034,7 +1331,7 @@ export default function BacklogPage() {
                     setCoverPreview(e.target.value.trim());
                   }}
                   placeholder="https://images.example.com/poster.jpg"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
                 />
                 <p className="mt-1 text-[10px] text-white/30">
                   Вставьте URL постера из Steam или интернета
@@ -1051,13 +1348,19 @@ export default function BacklogPage() {
                     src={coverPreview}
                     alt="Предпросмотр"
                     className="h-full w-full object-cover"
-                    onError={() => setCoverError('Не удалось загрузить картинку по ссылке')}
+                    onError={() =>
+                      setCoverError('Не удалось загрузить картинку по ссылке')
+                    }
                   />
                 </div>
                 <div className="flex-1 min-w-0 text-xs">
-                  <p className="font-medium text-white truncate">Предпросмотр обложки</p>
-                  <p className="text-[11px] text-white/40 mt-0.5">
-                    {coverFileInput ? coverFileInput.name : 'Изображение по ссылке'}
+                  <p className="font-medium text-white truncate">
+                    Предпросмотр обложки
+                  </p>
+                  <p className="text-[11px] text-white/40 mt-0.5 font-mono">
+                    {coverFileInput
+                      ? coverFileInput.name
+                      : 'Изображение по ссылке'}
                   </p>
                 </div>
               </div>
@@ -1096,8 +1399,11 @@ export default function BacklogPage() {
                 <button
                   type="button"
                   onClick={handleSaveCover}
-                  disabled={isSavingCover || (!coverFileInput && !coverUrlInput.trim() && !coverPreview)}
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500 transition-all disabled:opacity-40"
+                  disabled={
+                    isSavingCover ||
+                    (!coverFileInput && !coverUrlInput.trim() && !coverPreview)
+                  }
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-medium text-white hover:bg-amber-500 transition-all disabled:opacity-40 shadow-lg shadow-amber-950/40"
                 >
                   {isSavingCover ? (
                     <Loader2 size={13} className="animate-spin" />
@@ -1115,10 +1421,14 @@ export default function BacklogPage() {
       {/* Модалка изменения заметки */}
       {noteModalItem && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
-          onClick={(e) => !isSavingNote && e.target === e.currentTarget && setNoteModalItem(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={(e) =>
+            !isSavingNote &&
+            e.target === e.currentTarget &&
+            setNoteModalItem(null)
+          }
         >
-          <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#131720] p-6 shadow-2xl">
+          <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#10141d] p-6 shadow-2xl">
             <button
               onClick={() => setNoteModalItem(null)}
               disabled={isSavingNote}
@@ -1127,10 +1437,10 @@ export default function BacklogPage() {
               <X size={18} />
             </button>
 
-            <h2 className="text-base font-bold text-white mb-1">
+            <h2 className="font-fantasy text-base font-bold text-white mb-1">
               Заметка к игре
             </h2>
-            <p className="text-xs text-white/40 mb-4 truncate">
+            <p className="text-xs text-white/40 mb-4 truncate font-mono">
               {noteModalItem.title}
             </p>
 
@@ -1147,7 +1457,7 @@ export default function BacklogPage() {
                 value={noteInputDraft}
                 onChange={(e) => setNoteInputDraft(e.target.value)}
                 placeholder="Например: 9/10, шедевр, жду DLC..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
               />
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -1162,7 +1472,7 @@ export default function BacklogPage() {
                 <button
                   type="submit"
                   disabled={isSavingNote}
-                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50"
                 >
                   {isSavingNote ? (
                     <Loader2 size={13} className="animate-spin" />
@@ -1173,6 +1483,136 @@ export default function BacklogPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка наград и медалей («Зал Славы») */}
+      {badgeModalItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={(e) =>
+            !isSavingBadge &&
+            e.target === e.currentTarget &&
+            setBadgeModalItem(null)
+          }
+        >
+          <div className="relative w-full max-w-md rounded-2xl border border-amber-500/30 bg-[#0e121a] p-6 shadow-2xl shadow-amber-950/50">
+            <button
+              onClick={() => setBadgeModalItem(null)}
+              disabled={isSavingBadge}
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="text-amber-400" size={20} />
+              <h2 className="font-fantasy text-lg font-bold text-white">
+                Зал Славы — Награда
+              </h2>
+            </div>
+            <p className="text-xs text-white/40 mb-4 truncate font-mono">
+              {badgeModalItem.title}
+            </p>
+
+            {/* Выбор готовых пресетов медалек */}
+            <label className="block text-xs font-medium text-amber-200/80 mb-2">
+              Выберите награду:
+            </label>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {BADGE_PRESETS.map((preset) => {
+                const isSelected = selectedBadge === preset.value;
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => {
+                      setSelectedBadge(preset.value);
+                      setCustomBadgeInput('');
+                    }}
+                    className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-medium transition-all text-left ${
+                      isSelected
+                        ? 'border-amber-400 bg-amber-500/20 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/40'
+                        : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <span className="truncate">{preset.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Или свой текст */}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-white/60 mb-1.5">
+                Или введите свою награду:
+              </label>
+              <input
+                type="text"
+                value={customBadgeInput}
+                onChange={(e) => {
+                  setCustomBadgeInput(e.target.value);
+                  setSelectedBadge(e.target.value);
+                }}
+                placeholder="Например: 🌟 Любимая игра, 🗡️ 150 часов..."
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+              />
+            </div>
+
+            {/* Предпросмотр золотого бейджа */}
+            {selectedBadge.trim() && (
+              <div className="mb-5 flex flex-col items-center justify-center p-3 rounded-xl border border-amber-500/20 bg-black/40">
+                <span className="text-[11px] text-white/40 mb-1.5">
+                  Предпросмотр на постере:
+                </span>
+                <div className="badge-gold-shimmer rounded-lg border border-yellow-200/90 px-3 py-1 shadow-[0_2px_12px_rgba(245,158,11,0.5)]">
+                  <span className="font-fantasy text-xs font-black tracking-wide text-amber-950 drop-shadow-[0_1px_1px_rgba(255,255,255,0.4)] flex items-center justify-center gap-1">
+                    {selectedBadge.trim()}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Кнопки действий */}
+            <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-4">
+              {badgeModalItem.badge ? (
+                <button
+                  type="button"
+                  onClick={() => handleSaveBadge(null)}
+                  disabled={isSavingBadge}
+                  className="text-xs text-rose-400 hover:text-rose-300 py-1.5 px-3 rounded-lg hover:bg-rose-500/10 transition-colors"
+                >
+                  Снять награду
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBadgeModalItem(null)}
+                  disabled={isSavingBadge}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveBadge(selectedBadge)}
+                  disabled={isSavingBadge || !selectedBadge.trim()}
+                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-40 shadow-lg shadow-amber-950/40"
+                >
+                  {isSavingBadge ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Check size={13} />
+                  )}
+                  <span>Применить</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

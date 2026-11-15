@@ -59,10 +59,10 @@ export default function HomePage() {
       {/* Шапка главной витрины */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">
+          <h1 className="font-fantasy text-3xl sm:text-4xl font-extrabold tracking-wide text-white">
             Галерея игр
           </h1>
-          <p className="mt-1 text-sm text-white/40">
+          <p className="font-mono mt-1 text-sm text-white/40">
             {games.length > 0
               ? `${games.length} ${pluralGames(games.length)} в коллекции`
               : 'Коллекция пустая'}
@@ -82,7 +82,7 @@ export default function HomePage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск по названию..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
               />
               {searchQuery && (
                 <button
@@ -100,7 +100,7 @@ export default function HomePage() {
           {user && (
             <button
               onClick={() => setShowAddGame(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 hover:shadow-lg hover:shadow-indigo-500/20 active:scale-95 shrink-0"
+              className="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-amber-500 hover:shadow-lg hover:shadow-amber-950/40 active:scale-95 shrink-0"
             >
               <Plus size={18} />
               <span>Добавить игру</span>

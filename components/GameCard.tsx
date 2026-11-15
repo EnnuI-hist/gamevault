@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Image as ImageIcon, Trash2, Pencil } from 'lucide-react';
+import TiltCard from './TiltCard';
 import type { Game } from '@/lib/types';
 
 interface GameCardProps {
@@ -20,9 +21,12 @@ export default function GameCard({
 }: GameCardProps) {
   return (
     <Link href={`/game?slug=${encodeURIComponent(game.slug)}`} className="group block">
-      <div className="relative overflow-hidden rounded-xl border border-white/5 bg-[#131720] transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1">
+      <TiltCard
+        coverUrl={game.cover_url}
+        className="border border-white/10 hover:border-amber-400/50 hover:shadow-[0_0_25px_rgba(251,191,36,0.18)]"
+      >
         {/* Постер 2:3 */}
-        <div className="relative aspect-[2/3] w-full overflow-hidden">
+        <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#0d1119]">
           {game.cover_url ? (
             <Image
               src={game.cover_url}
@@ -32,13 +36,16 @@ export default function GameCard({
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             />
           ) : (
-            <div className="flex h-full items-center justify-center bg-gradient-to-br from-indigo-900/40 to-slate-800">
-              <ImageIcon size={40} className="text-white/20" />
+            <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center bg-gradient-to-br from-indigo-950/80 via-slate-900 to-[#10141d]">
+              <ImageIcon size={38} className="text-white/20 mb-2" />
+              <p className="font-fantasy font-bold text-white/80 text-xs sm:text-sm line-clamp-2">
+                {game.title}
+              </p>
             </div>
           )}
 
           {/* Оверлей затемнения снизу при наведении */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
           {/* Кнопки действий для владельца (справа сверху при наведении) */}
           {isOwner && (
@@ -52,9 +59,9 @@ export default function GameCard({
                     e.stopPropagation();
                     onEdit(game);
                   }}
-                  className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-indigo-600 hover:text-white"
+                  className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-amber-600 hover:text-white"
                 >
-                  <Pencil size={14} />
+                  <Pencil size={13} />
                 </button>
               )}
 
@@ -67,26 +74,26 @@ export default function GameCard({
                     e.stopPropagation();
                     onDelete(game);
                   }}
-                  className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-red-600 hover:text-white"
+                  className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-red-600 hover:text-white"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={13} />
                 </button>
               )}
             </div>
           )}
         </div>
 
-        {/* Информация */}
-        <div className="p-3">
-          <h3 className="truncate text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors">
+        {/* Информация под постером */}
+        <div className="p-3 bg-[#0f131c]/95 border-t border-white/5">
+          <h3 className="truncate font-fantasy text-sm font-bold text-white group-hover:text-amber-300 transition-colors tracking-wide">
             {game.title}
           </h3>
-          <p className="mt-0.5 text-xs text-white/40">
+          <p className="mt-0.5 font-mono text-[11px] text-white/40">
             {game.screenshot_count ?? 0}{' '}
             {pluralScreenshots(game.screenshot_count ?? 0)}
           </p>
         </div>
-      </div>
+      </TiltCard>
     </Link>
   );
 }
