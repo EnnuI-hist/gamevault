@@ -79,6 +79,9 @@ async function compressCoverToWebP(file: File): Promise<Blob> {
   });
 }
 
+const BACKLOG_CACHE_KEY = 'gamevault_backlog_items';
+const VAULT_STATS_CACHE_KEY = 'gamevault_vault_stats';
+
 export default function BacklogPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<BacklogItem[]>([]);
@@ -128,15 +131,31 @@ export default function BacklogPage() {
 
   const supabase = createClient();
 
-  const loadBacklog = async () => {
-    setLoading(true);
+  const updateItemsAndCache = (newItems: BacklogItem[]) => {
+    setItems(newItems);
+    try {
+      localStorage.setItem(BACKLOG_CACHE_KEY, JSON.stringify(newItems));
+    } catch (e) {
+      console.warn('Ошибка сохранения кэша списка игр:', e);
+    }
+  };
+
+  const loadBacklog = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    // Оптимизированный запрос к таблице game_backlog
     const { data, error } = await supabase
       .from('game_backlog')
-      .select('*')
+      .select('id, title, status, note, cover_url, badge, created_at')
       .order('created_at', { ascending: false });
 
     if (!error && data) {
-      setItems(data as BacklogItem[]);
+      const backlogData = data as BacklogItem[];
+      setItems(backlogData);
+      try {
+        localStorage.setItem(BACKLOG_CACHE_KEY, JSON.stringify(backlogData));
+      } catch (e) {
+        console.warn('Ошибка записи кэша списка игр:', e);
+      }
     }
     setLoading(false);
   };
@@ -147,32 +166,59 @@ export default function BacklogPage() {
         supabase.from('screenshots').select('id', { count: 'exact', head: true }),
         supabase.from('game_saves').select('id', { count: 'exact', head: true }),
       ]);
-      setVaultStats({
+      const stats = {
         screenshots: scRes.count ?? 0,
         saves: svRes.count ?? 0,
-      });
+      };
+      setVaultStats(stats);
+      try {
+        localStorage.setItem(VAULT_STATS_CACHE_KEY, JSON.stringify(stats));
+      } catch (e) {
+        console.warn('Ошибка записи кэша статистики:', e);
+      }
     } catch (e) {
       console.warn('Ошибка загрузки статистики хранилища:', e);
     }
   };
 
   useEffect(() => {
-    loadBacklog();
+    // Мгновенный кэш (Stale-While-Revalidate): рендерим сразу из localStorage без задержек
+    let hasCache = false;
+    try {
+      const cached = localStorage.getItem(BACKLOG_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setItems(parsed);
+          setLoading(false);
+          hasCache = true;
+        }
+      }
+      const cachedStats = localStorage.getItem(VAULT_STATS_CACHE_KEY);
+      if (cachedStats) {
+        setVaultStats(JSON.parse(cachedStats));
+      }
+    } catch (e) {
+      console.warn('Ошибка чтения кэша списка игр:', e);
+    }
+
+    // Фоновое обновление из базы данных Supabase
+    loadBacklog(!hasCache);
     fetchVaultStats();
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        loadBacklog();
+        loadBacklog(false);
         fetchVaultStats();
       }
     };
 
     window.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', loadBacklog);
+    window.addEventListener('focus', () => loadBacklog(false));
 
     return () => {
       window.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', loadBacklog);
+      window.removeEventListener('focus', () => loadBacklog(false));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -252,7 +298,7 @@ export default function BacklogPage() {
       if (error) throw error;
 
       if (data) {
-        setItems((prev) => [data as BacklogItem, ...prev]);
+        updateItemsAndCache([data as BacklogItem, ...items]);
         setNewTitle('');
         setNewNote('');
         setNewCoverFile(null);
@@ -274,9 +320,10 @@ export default function BacklogPage() {
   // Переключение статуса в 1 клик
   const handleStatusChange = async (id: string, nextStatus: GameStatus) => {
     const prevItems = [...items];
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: nextStatus } : item))
+    const nextItems = items.map((item) =>
+      item.id === id ? { ...item, status: nextStatus } : item
     );
+    updateItemsAndCache(nextItems);
 
     const { error } = await supabase
       .from('game_backlog')
@@ -285,7 +332,7 @@ export default function BacklogPage() {
 
     if (error) {
       console.error('Ошибка обновления статуса:', error);
-      setItems(prevItems);
+      updateItemsAndCache(prevItems);
       alert('Не удалось обновить статус');
     }
   };
@@ -294,7 +341,7 @@ export default function BacklogPage() {
   const handleDelete = async (item: BacklogItem) => {
     if (!confirm(`Удалить «${item.title}» из списка?`)) return;
 
-    setItems((prev) => prev.filter((i) => i.id !== item.id));
+    updateItemsAndCache(items.filter((i) => i.id !== item.id));
 
     if (item.cover_url && item.cover_url.includes('/backlog-covers/')) {
       try {
@@ -395,8 +442,8 @@ export default function BacklogPage() {
 
       if (dbErr) throw dbErr;
 
-      setItems((prev) =>
-        prev.map((i) =>
+      updateItemsAndCache(
+        items.map((i) =>
           i.id === coverModalItem.id ? { ...i, cover_url: finalCoverUrl } : i
         )
       );
@@ -434,8 +481,8 @@ export default function BacklogPage() {
 
       if (error) throw error;
 
-      setItems((prev) =>
-        prev.map((i) =>
+      updateItemsAndCache(
+        items.map((i) =>
           i.id === coverModalItem.id ? { ...i, cover_url: null } : i
         )
       );
@@ -468,8 +515,8 @@ export default function BacklogPage() {
 
       if (error) throw error;
 
-      setItems((prev) =>
-        prev.map((i) => (i.id === noteModalItem.id ? { ...i, note: clean } : i))
+      updateItemsAndCache(
+        items.map((i) => (i.id === noteModalItem.id ? { ...i, note: clean } : i))
       );
 
       setNoteModalItem(null);
@@ -505,8 +552,8 @@ export default function BacklogPage() {
 
       if (error) throw error;
 
-      setItems((prev) =>
-        prev.map((i) =>
+      updateItemsAndCache(
+        items.map((i) =>
           i.id === badgeModalItem.id ? { ...i, badge: cleanBadge } : i
         )
       );
@@ -1081,28 +1128,33 @@ export default function BacklogPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="group relative">
-              <TiltCard
-                coverUrl={item.cover_url}
-                statusGlowClass={getStatusGlow(item.status)}
-                className="h-full flex flex-col justify-between"
-              >
-                {/* Постер 2:3 */}
-                <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#0a0d13]">
-                  {item.cover_url ? (
-                    <Image
-                      src={item.cover_url}
-                      alt={item.title}
-                      fill
-                      className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
-                        item.status === 'dropped'
-                          ? 'saturate-50 opacity-80 group-hover:saturate-75 group-hover:opacity-100'
-                          : ''
-                      }`}
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                    />
-                  ) : (
+          {filteredItems.map((item, index) => {
+            const isPriority = index < 6;
+            return (
+              <div key={item.id} className="group relative">
+                <TiltCard
+                  coverUrl={item.cover_url}
+                  statusGlowClass={getStatusGlow(item.status)}
+                  className="h-full flex flex-col justify-between"
+                >
+                  {/* Постер 2:3 */}
+                  <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#0a0d13]">
+                    {item.cover_url ? (
+                      <Image
+                        src={item.cover_url}
+                        alt={item.title}
+                        fill
+                        priority={isPriority}
+                        loading={isPriority ? 'eager' : 'lazy'}
+                        decoding="async"
+                        className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
+                          item.status === 'dropped'
+                            ? 'saturate-50 opacity-80 group-hover:saturate-75 group-hover:opacity-100'
+                            : ''
+                        }`}
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                      />
+                    ) : (
                     /* Стильная карточка-заглушка 2:3 с темным фэнтези градиентом */
                     <div className="flex h-full w-full flex-col items-center justify-between p-4 text-center bg-gradient-to-br from-[var(--neon-badge-bg)] via-slate-900 to-[#10141d]">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/30 mt-4">
@@ -1236,7 +1288,8 @@ export default function BacklogPage() {
                 </div>
               </TiltCard>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
 

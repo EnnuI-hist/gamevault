@@ -11,6 +11,8 @@ interface GameCardProps {
   isOwner?: boolean;
   onDelete?: (game: Game) => void;
   onEdit?: (game: Game) => void;
+  index?: number;
+  priority?: boolean;
 }
 
 export default function GameCard({
@@ -18,7 +20,11 @@ export default function GameCard({
   isOwner,
   onDelete,
   onEdit,
+  index,
+  priority,
 }: GameCardProps) {
+  const isPriority = priority ?? (index !== undefined && index < 6);
+
   return (
     <Link href={`/game?slug=${encodeURIComponent(game.slug)}`} className="group block">
       <TiltCard
@@ -32,6 +38,9 @@ export default function GameCard({
               src={game.cover_url}
               alt={game.title}
               fill
+              priority={isPriority}
+              loading={isPriority ? 'eager' : 'lazy'}
+              decoding="async"
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             />

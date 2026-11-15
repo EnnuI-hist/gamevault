@@ -10,6 +10,8 @@ import DeleteGameModal from '@/components/DeleteGameModal';
 import EditGameModal from '@/components/EditGameModal';
 import type { Game } from '@/lib/types';
 
+const CACHE_KEY = 'gamevault_home_games';
+
 export default function HomePage() {
   const { user } = useAuth();
   const [games, setGames] = useState<Game[]>([]);
@@ -20,31 +22,65 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const supabase = createClient();
 
-  const loadGames = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('games')
-      .select(`
-        *,
-        screenshot_count:screenshots(count)
-      `)
-      .order('created_at', { ascending: false });
+  const loadGames = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
+    try {
+      // Оптимизированный запрос: выбираем только необходимые поля и count скриншотов
+      const { data, error } = await supabase
+        .from('games')
+        .select(`
+          id,
+          title,
+          slug,
+          cover_url,
+          status,
+          created_at,
+          screenshot_count:screenshots(count)
+        `)
+        .order('created_at', { ascending: false });
 
-    if (data) {
-      const mapped: Game[] = data.map((g) => ({
-        ...g,
-        status: g.status || 'completed',
-        screenshot_count: Array.isArray(g.screenshot_count)
-          ? (g.screenshot_count[0] as { count: number })?.count ?? 0
-          : 0,
-      }));
-      setGames(mapped);
+      if (!error && data) {
+        const mapped: Game[] = data.map((g) => ({
+          ...g,
+          status: g.status || 'completed',
+          screenshot_count: Array.isArray(g.screenshot_count)
+            ? (g.screenshot_count[0] as { count: number })?.count ?? 0
+            : 0,
+        }));
+        setGames(mapped);
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(mapped));
+        } catch (e) {
+          console.warn('Ошибка записи кэша игр:', e);
+        }
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки игр:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
-    loadGames();
+    // Мгновенный кэш (Stale-While-Revalidate): рендерим сразу из localStorage
+    let hasCache = false;
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setGames(parsed);
+          setLoading(false);
+          hasCache = true;
+        }
+      }
+    } catch (e) {
+      console.warn('Ошибка чтения кэша игр:', e);
+    }
+
+    // Фоновое обновление из Supabase без мигания экрана
+    loadGames(!hasCache);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Фильтрация только по поиску
@@ -151,10 +187,11 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {filteredGames.map((game) => (
+          {filteredGames.map((game, index) => (
             <GameCard
               key={game.id}
               game={game}
+              index={index}
               isOwner={!!user}
               onDelete={(g) => setGameToDelete(g)}
               onEdit={(g) => setGameToEdit(g)}
@@ -167,7 +204,7 @@ export default function HomePage() {
       {showAddGame && (
         <AddGameModal
           onClose={() => setShowAddGame(false)}
-          onAdded={loadGames}
+          onAdded={() => loadGames(false)}
         />
       )}
 
@@ -177,9 +214,13 @@ export default function HomePage() {
           game={gameToEdit}
           onClose={() => setGameToEdit(null)}
           onUpdated={(updatedGame) => {
-            setGames((prev) =>
-              prev.map((g) => (g.id === updatedGame.id ? { ...g, ...updatedGame } : g))
-            );
+            setGames((prev) => {
+              const next = prev.map((g) => (g.id === updatedGame.id ? { ...g, ...updatedGame } : g));
+              try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+              } catch {}
+              return next;
+            });
             setGameToEdit(null);
           }}
         />
@@ -191,8 +232,16 @@ export default function HomePage() {
           game={gameToDelete}
           onClose={() => setGameToDelete(null)}
           onDeleted={() => {
+            const deletedId = gameToDelete.id;
             setGameToDelete(null);
-            loadGames();
+            setGames((prev) => {
+              const next = prev.filter((g) => g.id !== deletedId);
+              try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(next));
+              } catch {}
+              return next;
+            });
+            loadGames(false);
           }}
         />
       )}
