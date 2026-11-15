@@ -51,9 +51,7 @@ export default function RootLayout({
       className={`dark ${manrope.variable} ${unbounded.variable} ${orbitron.variable} ${jetbrainsMono.variable}`}
     >
       <head>
-        <link rel="preconnect" href="https://supabase.co" />
         <link rel="preconnect" href="https://husdzyczmhkkpgxhndvw.supabase.co" crossOrigin="" />
-        <link rel="dns-prefetch" href="https://supabase.co" />
         <link rel="dns-prefetch" href="https://husdzyczmhkkpgxhndvw.supabase.co" />
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
