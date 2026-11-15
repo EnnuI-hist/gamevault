@@ -177,16 +177,16 @@ export default function EditGameModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
       onClick={(e) => !loading && e.target === e.currentTarget && onClose()}
     >
-      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#131720] p-6 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0d111a]/95 backdrop-blur-xl p-6 shadow-2xl">
         <button
           onClick={onClose}
           disabled={loading}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+          className="absolute right-4 top-4 rounded-xl border border-transparent p-1.5 text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/10 hover:text-white active:scale-95 disabled:opacity-40"
         >
           <X size={18} />
         </button>
 
-        <h2 className="mb-5 text-xl font-bold text-white">Редактировать игру</h2>
+        <h2 className="mb-5 text-xl font-bold text-white font-fantasy">Редактировать игру</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Название игры */}
@@ -284,14 +284,14 @@ export default function EditGameModal({
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs sm:text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+              className="rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-4 py-2.5 text-xs sm:text-sm font-medium text-white/70 transition-all duration-200 hover:bg-white/10 hover:text-white hover:border-white/30 active:scale-95 disabled:opacity-40"
             >
               Отмена
             </button>
             <button
               type="submit"
               disabled={loading || !title.trim()}
-              className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-medium text-white transition disabled:opacity-50 neon-btn-primary"
+              className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-medium text-white transition-all duration-200 disabled:opacity-50 neon-btn-primary active:scale-95 cursor-pointer shadow-md"
             >
               {loading ? (
                 <>

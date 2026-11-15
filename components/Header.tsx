@@ -102,31 +102,31 @@ export default function Header() {
             </div>
           </Link>
 
-          {/* Навигационные табы: Витрина vs Список игр */}
-          <nav className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#0d121d]/80 p-1 backdrop-blur-md">
+          {/* Навигационные табы: Витрина vs Список игр (Стеклянная капсула) */}
+          <nav className="flex items-center gap-1 rounded-full border border-white/10 bg-[#0d111a]/80 p-1 backdrop-blur-md shadow-inner">
             <Link
               href="/"
               prefetch={false}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
                 isShowcase
-                  ? 'neon-badge'
-                  : 'border border-transparent text-white/60 hover:bg-white/5 hover:text-white'
+                  ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
+                  : 'border border-transparent text-white/60 hover:bg-white/5 hover:border-white/10 hover:text-white'
               }`}
             >
-              <LayoutGrid size={15} />
+              <LayoutGrid size={15} className={isShowcase ? 'text-[var(--neon-text)] drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.6)]' : ''} />
               <span>Витрина</span>
             </Link>
 
             <Link
               href="/list"
               prefetch={false}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
                 isList
-                  ? 'neon-badge'
-                  : 'border border-transparent text-white/60 hover:bg-white/5 hover:text-white'
+                  ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
+                  : 'border border-transparent text-white/60 hover:bg-white/5 hover:border-white/10 hover:text-white'
               }`}
             >
-              <ListTodo size={15} />
+              <ListTodo size={15} className={isList ? 'text-[var(--neon-text)] drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.6)]' : ''} />
               <span>Список игр</span>
             </Link>
           </nav>
@@ -256,7 +256,7 @@ export default function Header() {
                   </div>
                   <button
                     onClick={signOut}
-                    className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs sm:text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+                    className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs sm:text-sm text-white/75 transition-all duration-200 hover:border-white/30 hover:bg-white/10 hover:text-white active:scale-95 shadow-sm"
                   >
                     <LogOut size={14} />
                     <span className="hidden sm:inline">Выйти</span>
@@ -265,9 +265,9 @@ export default function Header() {
               ) : (
                 <button
                   onClick={() => setShowAuth(true)}
-                  className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-medium neon-btn-primary"
+                  className="flex items-center gap-2 rounded-xl px-4 py-1.5 text-xs sm:text-sm font-medium neon-btn-primary active:scale-95 cursor-pointer shadow-sm"
                 >
-                  <LogIn size={14} />
+                  <LogIn size={14} className="text-[var(--neon-text)]" />
                   <span>Войти</span>
                 </button>
               )

@@ -126,7 +126,7 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
       onClick={handleDownloadAll}
       disabled={isWorking}
       title="Скачать все скриншоты одним ZIP архивом"
-      className="relative flex items-center gap-2 overflow-hidden rounded-xl border border-white/10 bg-[#131720] px-4 py-2.5 text-sm font-medium text-white transition hover:border-[var(--neon-primary)] hover:bg-white/5 hover:text-[var(--neon-text)] disabled:opacity-80 shrink-0"
+      className="relative flex items-center gap-2 overflow-hidden rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-80 shrink-0 neon-btn-primary active:scale-95 cursor-pointer shadow-md"
     >
       {/* Фоновый прогресс-бар при скачивании */}
       {isWorking && (

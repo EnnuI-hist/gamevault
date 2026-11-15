@@ -308,7 +308,7 @@ export default function GameSavesSection({
             <button
               type="submit"
               disabled={!selectedFile || uploading}
-              className="flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-50 neon-btn-primary"
+              className="flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 disabled:opacity-50 neon-btn-primary active:scale-95 cursor-pointer shadow-md"
             >
               {uploading ? (
                 <>
@@ -317,7 +317,7 @@ export default function GameSavesSection({
                 </>
               ) : (
                 <>
-                  <HardDrive size={16} />
+                  <HardDrive size={16} className="text-[var(--neon-text)]" />
                   <span>Сохранить в архив</span>
                 </>
               )}
@@ -398,14 +398,14 @@ export default function GameSavesSection({
                   )}
                 </div>
 
-                {/* Действия */}
+                {/* Действия (Лаунчерный стеклянный стиль) */}
                 <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
                   <button
                     type="button"
                     onClick={() => handleDownload(save)}
                     disabled={downloadingId === save.id}
                     title="Скачать файл сохранения на диск"
-                    className="flex items-center gap-1.5 rounded-lg neon-badge px-3 py-1.5 text-xs font-medium transition hover:bg-[var(--neon-primary)] hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-xl border border-[var(--neon-badge-border)] bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-[var(--neon-text)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.2)] transition-all duration-200 hover:bg-[var(--neon-badge-bg)] hover:border-[var(--neon-border-hover)] hover:shadow-[0_0_16px_rgba(var(--neon-primary-rgb),0.4)] hover:text-white active:scale-95 disabled:opacity-50"
                   >
                     {downloadingId === save.id ? (
                       <Loader2 size={13} className="animate-spin text-[var(--neon-text)]" />
@@ -421,7 +421,7 @@ export default function GameSavesSection({
                       onClick={() => handleDelete(save)}
                       disabled={deletingId === save.id}
                       title="Удалить сохранение"
-                      className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+                      className="rounded-xl border border-transparent p-1.5 text-white/40 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 active:scale-95 disabled:opacity-50"
                     >
                       {deletingId === save.id ? (
                         <Loader2 size={14} className="animate-spin text-red-400" />

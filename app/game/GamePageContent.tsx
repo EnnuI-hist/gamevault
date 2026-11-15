@@ -142,10 +142,10 @@ export default function GamePageContent() {
         <div className="relative z-10 mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-sm text-white/50 transition hover:text-white mb-6"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#0d111a]/60 px-3.5 py-1.5 text-xs sm:text-sm font-medium text-white/70 backdrop-blur-md transition-all duration-200 hover:border-white/25 hover:bg-white/10 hover:text-white active:scale-95 mb-6 shadow-sm"
           >
-            <ArrowLeft size={16} />
-            Назад к играм
+            <ArrowLeft size={15} />
+            <span>Назад к играм</span>
           </Link>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -180,7 +180,7 @@ export default function GamePageContent() {
                     type="button"
                     onClick={() => setShowEditModal(true)}
                     title="Изменить обложку или название игры"
-                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white shrink-0"
+                    className="flex items-center gap-2 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-4 py-2.5 text-sm font-medium text-white/80 transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.25)] active:scale-95 shrink-0 shadow-sm"
                   >
                     <Pencil size={15} />
                     <span>Изменить обложку</span>
@@ -189,7 +189,7 @@ export default function GamePageContent() {
                     type="button"
                     onClick={() => setShowDeleteModal(true)}
                     title="Удалить игру и все её материалы"
-                    className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 hover:text-red-300 shrink-0"
+                    className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 backdrop-blur-md px-4 py-2.5 text-sm font-medium text-red-400 transition-all duration-200 hover:border-red-500/70 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_14px_rgba(239,68,68,0.3)] active:scale-95 shrink-0 shadow-sm"
                   >
                     <Trash2 size={16} />
                     <span>Удалить игру</span>
@@ -203,51 +203,53 @@ export default function GamePageContent() {
 
       {/* Основной контент с вкладками */}
       <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
-        {/* Вкладки переключения: Галерея vs Сохранения */}
-        <div className="mb-6 flex items-center gap-2 border-b border-white/10 pb-3">
-          <button
-            type="button"
-            onClick={() => setActiveTab('gallery')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
-              activeTab === 'gallery'
-                ? 'neon-btn-primary shadow-lg'
-                : 'text-white/60 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <Images size={16} />
-            <span>Галерея</span>
-            <span
-              className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+        {/* Вкладки переключения: Галерея vs Сохранения (Стеклянная сегментированная капсула) */}
+        <div className="mb-6 flex items-center border-b border-white/10 pb-4">
+          <div className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 bg-[#0d111a]/80 p-1.5 backdrop-blur-md shadow-inner">
+            <button
+              type="button"
+              onClick={() => setActiveTab('gallery')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                 activeTab === 'gallery'
-                  ? 'bg-black/25 text-white'
-                  : 'bg-white/10 text-white/50'
+                  ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
+                  : 'border border-transparent bg-transparent text-white/60 hover:bg-white/5 hover:border-white/10 hover:text-white'
               }`}
             >
-              {screenshots.length}
-            </span>
-          </button>
+              <Images size={16} className={activeTab === 'gallery' ? 'text-[var(--neon-text)] drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.7)]' : ''} />
+              <span>Галерея</span>
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-xs font-mono font-semibold ${
+                  activeTab === 'gallery'
+                    ? 'bg-black/30 text-[var(--neon-text)] border border-[var(--neon-badge-border)]'
+                    : 'bg-white/5 text-white/50'
+                }`}
+              >
+                {screenshots.length}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('saves')}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
-              activeTab === 'saves'
-                ? 'neon-btn-primary shadow-lg'
-                : 'text-white/60 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <HardDrive size={16} />
-            <span>Сохранения (Saves)</span>
-            <span
-              className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+            <button
+              type="button"
+              onClick={() => setActiveTab('saves')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
                 activeTab === 'saves'
-                  ? 'bg-black/25 text-white'
-                  : 'bg-white/10 text-white/50'
+                  ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
+                  : 'border border-transparent bg-transparent text-white/60 hover:bg-white/5 hover:border-white/10 hover:text-white'
               }`}
             >
-              {savesCount}
-            </span>
-          </button>
+              <HardDrive size={16} className={activeTab === 'saves' ? 'text-[var(--neon-text)] drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.7)]' : ''} />
+              <span>Сохранения (Saves)</span>
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-xs font-mono font-semibold ${
+                  activeTab === 'saves'
+                    ? 'bg-black/30 text-[var(--neon-text)] border border-[var(--neon-badge-border)]'
+                    : 'bg-white/5 text-white/50'
+                }`}
+              >
+                {savesCount}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Содержимое вкладки Галерея */}

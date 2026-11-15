@@ -101,26 +101,26 @@ export default function Lightbox({
             onClick={handleDownload}
             disabled={downloading}
             title={isVideo ? 'Скачать видео' : 'Скачать файл на диск в максимальном качестве'}
-            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-white/80 transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.3)] active:scale-95 disabled:opacity-50"
           >
             {downloading ? (
               <Loader2 size={13} className="animate-spin text-[var(--neon-text)]" />
             ) : (
               <Download size={13} />
             )}
-            {downloading ? 'Загрузка...' : isVideo ? 'Скачать видео' : 'Скачать оригинал'}
+            <span>{downloading ? 'Загрузка...' : isVideo ? 'Скачать видео' : 'Скачать оригинал'}</span>
           </button>
           {isOwner && (
             <button
               onClick={() => onDelete(current)}
-              className="rounded-lg border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition hover:bg-red-500/20"
+              className="rounded-xl border border-red-500/40 bg-red-500/10 p-2 text-red-400 transition-all duration-200 hover:border-red-500/70 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_12px_rgba(239,68,68,0.3)] active:scale-95"
             >
               <Trash2 size={14} />
             </button>
           )}
           <button
             onClick={onClose}
-            className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-white/50 transition hover:bg-white/10 hover:text-white"
+            className="rounded-xl border border-white/15 bg-white/5 p-2 text-white/60 transition-all duration-200 hover:border-white/30 hover:bg-white/10 hover:text-white active:scale-95"
           >
             <X size={16} />
           </button>
@@ -179,10 +179,10 @@ export default function Lightbox({
               placeholder="Добавь описание момента..."
               className="flex-1 rounded-lg border border-[var(--neon-badge-border)] bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none neon-ring-focus"
             />
-            <button onClick={saveCaption} className="rounded-lg p-2 text-white neon-btn-primary">
+            <button onClick={saveCaption} className="rounded-xl p-2 text-white neon-btn-primary active:scale-95 shadow-md">
               <Check size={16} />
             </button>
-            <button onClick={() => setEditingCaption(false)} className="rounded-lg bg-white/10 p-2 text-white/60 hover:bg-white/20">
+            <button onClick={() => setEditingCaption(false)} className="rounded-xl border border-white/10 bg-white/10 p-2 text-white/60 hover:bg-white/20 hover:text-white active:scale-95 transition-all">
               <X size={16} />
             </button>
           </div>

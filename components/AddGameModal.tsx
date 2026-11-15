@@ -68,34 +68,34 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#131720] p-6 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0d111a]/95 backdrop-blur-xl p-6 shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 rounded-xl border border-transparent p-1.5 text-white/40 transition-all duration-200 hover:border-white/10 hover:bg-white/10 hover:text-white active:scale-95"
         >
           <X size={18} />
         </button>
 
-        <h2 className="mb-6 text-xl font-bold text-white">Добавить игру</h2>
+        <h2 className="mb-6 text-xl font-bold text-white font-fantasy">Добавить игру</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm text-white/60">Название игры</label>
+            <label className="mb-1.5 block text-xs font-medium text-white/60">Название игры</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="Elden Ring"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm text-white/60">Обложка (необязательно)</label>
+            <label className="mb-1.5 block text-xs font-medium text-white/60">Обложка (необязательно)</label>
             <input
               ref={fileRef}
               type="file"
@@ -104,12 +104,12 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
               onChange={(e) => e.target.files?.[0] && handleCover(e.target.files[0])}
             />
             {coverPreview ? (
-              <div className="relative h-44 overflow-hidden rounded-lg">
+              <div className="relative h-44 overflow-hidden rounded-xl border border-white/10">
                 <Image src={coverPreview} alt="Обложка" fill className="object-cover" />
                 <button
                   type="button"
                   onClick={() => { setCoverFile(null); setCoverPreview(''); }}
-                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                  className="absolute right-2 top-2 rounded-xl bg-black/70 backdrop-blur-md p-1.5 text-white hover:bg-black/90 active:scale-95 transition-all"
                 >
                   <X size={14} />
                 </button>
@@ -118,22 +118,22 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 py-6 text-white/40 transition hover:border-[var(--neon-primary)] hover:text-[var(--neon-text)]"
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-6 text-white/40 transition-all duration-200 hover:border-[var(--neon-primary)] hover:bg-white/5 hover:text-[var(--neon-text)] active:scale-95 cursor-pointer"
               >
                 <Upload size={20} />
-                <span className="text-sm">Выбрать обложку</span>
+                <span className="text-xs font-medium">Выбрать обложку</span>
               </button>
             )}
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>
+            <p className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-400">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading || !title.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:opacity-50 neon-btn-primary"
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-medium text-white transition disabled:opacity-50 neon-btn-primary active:scale-95 cursor-pointer shadow-md"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
             {loading ? 'Создание...' : 'Создать игру'}

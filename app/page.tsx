@@ -144,7 +144,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setSearchQuery('')}
-            className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="mt-4 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-4 py-2 text-xs font-medium text-white/70 transition-all duration-200 hover:border-white/30 hover:bg-white/10 hover:text-white active:scale-95"
           >
             Сбросить поиск
           </button>

@@ -47,7 +47,7 @@ export default function GameCard({
           {/* Оверлей затемнения снизу при наведении */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
-          {/* Кнопки действий для владельца (справа сверху при наведении) */}
+          {/* Кнопки действий для владельца (справа сверху при наведении - лаунчерный стеклянный стиль) */}
           {isOwner && (
             <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               {onEdit && (
@@ -59,7 +59,7 @@ export default function GameCard({
                     e.stopPropagation();
                     onEdit(game);
                   }}
-                  className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-[var(--neon-primary)] hover:text-white"
+                  className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.35)] active:scale-95"
                 >
                   <Pencil size={13} />
                 </button>
@@ -74,7 +74,7 @@ export default function GameCard({
                     e.stopPropagation();
                     onDelete(game);
                   }}
-                  className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-red-600 hover:text-white"
+                  className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-red-500/60 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_12px_rgba(239,68,68,0.35)] active:scale-95"
                 >
                   <Trash2 size={13} />
                 </button>

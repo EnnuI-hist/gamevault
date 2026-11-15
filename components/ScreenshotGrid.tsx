@@ -145,16 +145,16 @@ export default function ScreenshotGrid({
                 )}
               </div>
 
-              {/* Кнопки действий при наведении */}
+              {/* Кнопки действий при наведении (Лаунчерный стеклянный стиль) */}
               <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   title={isVideo ? 'Скачать видео' : 'Скачать оригинал'}
                   onClick={(e) => handleQuickDownload(e, shot)}
                   disabled={downloadingId === shot.id}
-                  className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-[var(--neon-primary)] hover:text-white disabled:opacity-50"
+                  className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.35)] active:scale-95 disabled:opacity-50"
                 >
                   {downloadingId === shot.id ? (
-                    <Loader2 size={14} className="animate-spin text-white" />
+                    <Loader2 size={14} className="animate-spin text-[var(--neon-text)]" />
                   ) : (
                     <Download size={14} />
                   )}
@@ -164,7 +164,7 @@ export default function ScreenshotGrid({
                   <button
                     title="Удалить"
                     onClick={(e) => { e.stopPropagation(); handleDelete(shot); }}
-                    className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-red-600 hover:text-white"
+                    className="flex items-center justify-center rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md p-2 text-white/80 shadow-lg transition-all duration-200 hover:border-red-500/60 hover:bg-red-500/20 hover:text-red-300 hover:shadow-[0_0_12px_rgba(239,68,68,0.35)] active:scale-95"
                   >
                     <Trash2 size={14} />
                   </button>
