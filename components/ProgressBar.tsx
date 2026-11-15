@@ -11,7 +11,7 @@ export default function ProgressBar({ progress, status }: ProgressBarProps) {
       ? 'bg-red-500'
       : status === 'done'
       ? 'bg-green-500'
-      : 'bg-indigo-500';
+      : 'bg-[var(--neon-primary)] shadow-[0_0_8px_rgba(var(--neon-primary-rgb),0.5)]';
 
   return (
     <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">

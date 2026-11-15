@@ -82,7 +82,7 @@ export default function HomePage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск по названию..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
               />
               {searchQuery && (
                 <button
@@ -100,7 +100,7 @@ export default function HomePage() {
           {user && (
             <button
               onClick={() => setShowAddGame(true)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-amber-500 hover:shadow-lg hover:shadow-amber-950/40 active:scale-95 shrink-0"
+              className="flex items-center justify-center gap-2 rounded-xl px-5 py-2 text-sm font-medium text-white transition neon-btn-primary active:scale-95 shrink-0"
             >
               <Plus size={18} />
               <span>Добавить игру</span>

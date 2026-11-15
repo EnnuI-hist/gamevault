@@ -7,7 +7,7 @@ export default function GamePage() {
     <Suspense
       fallback={
         <div className="flex min-h-[60vh] items-center justify-center">
-          <Loader2 className="animate-spin text-indigo-500" size={36} />
+          <Loader2 className="animate-spin text-[var(--neon-primary)]" size={36} />
         </div>
       }
     >

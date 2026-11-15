@@ -67,7 +67,7 @@ export default function TiltCard({
           style={{ backgroundImage: `url(${coverUrl})` }}
         />
       ) : (
-        <div className="absolute -inset-2 -z-10 rounded-2xl bg-indigo-600/25 blur-2xl opacity-0 transition-opacity duration-500 group-hover/tilt:opacity-40 pointer-events-none scale-90 group-hover/tilt:scale-105" />
+        <div className="absolute -inset-2 -z-10 rounded-2xl bg-[var(--neon-primary)] blur-2xl opacity-0 transition-opacity duration-500 group-hover/tilt:opacity-40 pointer-events-none scale-90 group-hover/tilt:scale-105" />
       )}
 
       {/* 3D Контейнер карточки */}

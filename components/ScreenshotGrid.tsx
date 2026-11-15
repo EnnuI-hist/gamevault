@@ -151,7 +151,7 @@ export default function ScreenshotGrid({
                   title={isVideo ? 'Скачать видео' : 'Скачать оригинал'}
                   onClick={(e) => handleQuickDownload(e, shot)}
                   disabled={downloadingId === shot.id}
-                  className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-indigo-600 hover:text-white disabled:opacity-50"
+                  className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/80 shadow-lg transition hover:bg-[var(--neon-primary)] hover:text-white disabled:opacity-50"
                 >
                   {downloadingId === shot.id ? (
                     <Loader2 size={14} className="animate-spin text-white" />

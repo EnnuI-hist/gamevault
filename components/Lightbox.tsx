@@ -104,7 +104,7 @@ export default function Lightbox({
             className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
           >
             {downloading ? (
-              <Loader2 size={13} className="animate-spin text-indigo-400" />
+              <Loader2 size={13} className="animate-spin text-[var(--neon-text)]" />
             ) : (
               <Download size={13} />
             )}
@@ -177,9 +177,9 @@ export default function Lightbox({
               onChange={(e) => setCaptionDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') saveCaption(); if (e.key === 'Escape') setEditingCaption(false); }}
               placeholder="Добавь описание момента..."
-              className="flex-1 rounded-lg border border-indigo-500/40 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-indigo-500"
+              className="flex-1 rounded-lg border border-[var(--neon-badge-border)] bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none neon-ring-focus"
             />
-            <button onClick={saveCaption} className="rounded-lg bg-indigo-600 p-2 text-white hover:bg-indigo-500">
+            <button onClick={saveCaption} className="rounded-lg p-2 text-white neon-btn-primary">
               <Check size={16} />
             </button>
             <button onClick={() => setEditingCaption(false)} className="rounded-lg bg-white/10 p-2 text-white/60 hover:bg-white/20">

@@ -177,8 +177,8 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
         onClick={() => !isUploading && inputRef.current?.click()}
         className={`relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 transition-all duration-200 ${
           isDragOver
-            ? 'border-indigo-500 bg-indigo-500/10'
-            : 'border-white/15 bg-white/[0.02] hover:border-indigo-500/50 hover:bg-white/5'
+            ? 'border-[var(--neon-primary)] bg-[var(--neon-badge-bg)]'
+            : 'border-white/15 bg-white/[0.02] hover:border-[var(--neon-primary)] hover:bg-white/5'
         }`}
       >
         <input
@@ -189,7 +189,7 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
           className="hidden"
           onChange={(e) => e.target.files && handleFiles(Array.from(e.target.files))}
         />
-        <UploadCloud size={32} className={isDragOver ? 'text-indigo-400' : 'text-white/30'} />
+        <UploadCloud size={32} className={isDragOver ? 'text-[var(--neon-text)]' : 'text-white/30'} />
         <div className="text-center">
           <p className="text-sm font-medium text-white/60">
             Перетащи файлы или нажми для выбора

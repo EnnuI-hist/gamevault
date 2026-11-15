@@ -200,7 +200,7 @@ export default function EditGameModal({
               onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="Название игры"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
             />
           </div>
 
@@ -232,8 +232,8 @@ export default function EditGameModal({
               onClick={() => !loading && fileRef.current?.click()}
               className={`relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed p-4 transition-all ${
                 isDragOver
-                  ? 'border-indigo-500 bg-indigo-500/10'
-                  : 'border-white/15 bg-white/[0.02] hover:border-indigo-500/50 hover:bg-white/5'
+                  ? 'border-[var(--neon-primary)] bg-[var(--neon-badge-bg)]'
+                  : 'border-white/15 bg-white/[0.02] hover:border-[var(--neon-primary)] hover:bg-white/5'
               }`}
             >
               {coverPreview ? (
@@ -253,7 +253,7 @@ export default function EditGameModal({
                     <p className="mt-1 text-[11px] text-white/40 leading-relaxed">
                       Нажмите или перетащите файл, чтобы заменить (поддерживается Ctrl+V)
                     </p>
-                    <span className="mt-2 inline-flex items-center gap-1 rounded-md bg-indigo-600/20 px-2 py-0.5 text-[10px] font-medium text-indigo-300">
+                    <span className="mt-2 inline-flex items-center gap-1 rounded-md neon-badge px-2 py-0.5 text-[10px] font-medium">
                       Заменить обложку
                     </span>
                   </div>
@@ -291,7 +291,7 @@ export default function EditGameModal({
             <button
               type="submit"
               disabled={loading || !title.trim()}
-              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs sm:text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-xs sm:text-sm font-medium text-white transition disabled:opacity-50 neon-btn-primary"
             >
               {loading ? (
                 <>

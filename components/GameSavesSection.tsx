@@ -30,10 +30,10 @@ interface GameSavesSectionProps {
 function getFileIcon(fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
   if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) {
-    return <Archive size={22} className="text-amber-400 shrink-0" />;
+    return <Archive size={22} className="text-[var(--neon-text)] shrink-0" />;
   }
   if (['sav', 'sl2', 'dat', 'bin', 'save'].includes(ext)) {
-    return <Save size={22} className="text-indigo-400 shrink-0" />;
+    return <Save size={22} className="text-[var(--neon-text)] shrink-0" />;
   }
   if (['json', 'xml', 'ini', 'cfg', 'txt'].includes(ext)) {
     return <FileCode size={22} className="text-sky-400 shrink-0" />;
@@ -202,7 +202,7 @@ export default function GameSavesSection({
       {isOwner && (
         <div className="rounded-2xl border border-white/10 bg-[#131720]/80 p-5 sm:p-6 backdrop-blur-sm">
           <div className="mb-4 flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl neon-badge">
               <HardDrive size={18} />
             </div>
             <div>
@@ -227,10 +227,10 @@ export default function GameSavesSection({
               onClick={() => !uploading && fileInputRef.current?.click()}
               className={`relative flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed p-6 transition-all duration-200 ${
                 isDragOver
-                  ? 'border-indigo-500 bg-indigo-500/10'
+                  ? 'border-[var(--neon-primary)] bg-[var(--neon-badge-bg)]'
                   : selectedFile
-                  ? 'border-indigo-500/40 bg-indigo-500/5'
-                  : 'border-white/15 bg-white/[0.02] hover:border-indigo-500/50 hover:bg-white/5'
+                  ? 'border-[var(--neon-border)] bg-white/5'
+                  : 'border-white/15 bg-white/[0.02] hover:border-[var(--neon-primary)] hover:bg-white/5'
               }`}
             >
               <input
@@ -270,7 +270,7 @@ export default function GameSavesSection({
                 <>
                   <UploadCloud
                     size={28}
-                    className={isDragOver ? 'text-indigo-400' : 'text-white/30'}
+                    className={isDragOver ? 'text-[var(--neon-text)]' : 'text-white/30'}
                   />
                   <div className="text-center">
                     <p className="text-sm font-medium text-white/70">
@@ -294,7 +294,7 @@ export default function GameSavesSection({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Например: Перед Маленией, 135 лвл, билд на ловкость"
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
               />
             </div>
 
@@ -308,7 +308,7 @@ export default function GameSavesSection({
             <button
               type="submit"
               disabled={!selectedFile || uploading}
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+              className="flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-50 neon-btn-primary"
             >
               {uploading ? (
                 <>
@@ -339,7 +339,7 @@ export default function GameSavesSection({
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 size={28} className="animate-spin text-indigo-500" />
+            <Loader2 size={28} className="animate-spin text-[var(--neon-primary)]" />
             <p className="mt-3 text-xs text-white/40">Загрузка списка сейвов...</p>
           </div>
         ) : saves.length === 0 ? (
@@ -361,7 +361,7 @@ export default function GameSavesSection({
             {saves.map((save) => (
               <div
                 key={save.id}
-                className="group relative flex flex-col justify-between rounded-xl border border-white/5 bg-[#131720] p-4 transition-all duration-200 hover:border-indigo-500/30 hover:bg-[#161b26] hover:shadow-lg hover:shadow-indigo-500/5"
+                className="group relative flex flex-col justify-between rounded-xl border border-white/5 bg-[#131720] p-4 transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[#161b26] hover:shadow-lg"
               >
                 <div>
                   <div className="flex items-start gap-3 mb-2">
@@ -371,7 +371,7 @@ export default function GameSavesSection({
                     <div className="flex-1 min-w-0">
                       <p
                         title={save.file_name}
-                        className="truncate text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors"
+                        className="truncate text-sm font-semibold text-white group-hover:text-[var(--neon-text)] transition-colors"
                       >
                         {save.file_name}
                       </p>
@@ -405,10 +405,10 @@ export default function GameSavesSection({
                     onClick={() => handleDownload(save)}
                     disabled={downloadingId === save.id}
                     title="Скачать файл сохранения на диск"
-                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600/20 border border-indigo-500/30 px-3 py-1.5 text-xs font-medium text-indigo-300 transition hover:bg-indigo-600 hover:text-white disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-lg neon-badge px-3 py-1.5 text-xs font-medium transition hover:bg-[var(--neon-primary)] hover:text-white disabled:opacity-50"
                   >
                     {downloadingId === save.id ? (
-                      <Loader2 size={13} className="animate-spin text-indigo-400" />
+                      <Loader2 size={13} className="animate-spin text-[var(--neon-text)]" />
                     ) : (
                       <Download size={13} />
                     )}

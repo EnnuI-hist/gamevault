@@ -565,7 +565,7 @@ export default function BacklogPage() {
       label: 'Все',
       icon: null,
       count: counts.all,
-      activeClass: 'bg-indigo-600 text-white shadow-indigo-600/30',
+      activeClass: 'neon-btn-primary shadow-md',
     },
     {
       id: 'completed',
@@ -622,9 +622,9 @@ export default function BacklogPage() {
             <h1 className="font-fantasy text-3xl sm:text-4xl font-extrabold tracking-wide text-white">
               Список игр
             </h1>
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-mono font-medium text-amber-300">
+            <span className="inline-flex items-center gap-1 rounded-full neon-badge px-3 py-1 text-xs font-mono font-medium">
               <Sparkles size={12} />
-              Dark Fantasy Showcase
+              Neon Cyber Showcase
             </span>
           </div>
           <p className="mt-1 font-mono text-sm text-white/40">
@@ -635,7 +635,7 @@ export default function BacklogPage() {
         </div>
       </div>
 
-      {/* Bento-панель статистики (Steam Big Picture / Dark Fantasy) */}
+      {/* Bento-панель статистики (Steam Big Picture / Cyber Neon) */}
       <div className="mb-8 rounded-2xl border border-white/10 bg-gradient-to-br from-[#0e121a]/95 via-[#0b0e15]/95 to-[#080a0f]/95 p-5 shadow-2xl backdrop-blur-xl">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Блок 1: Прогресс прохождения библиотеки */}
@@ -649,7 +649,10 @@ export default function BacklogPage() {
               </span>
             </div>
             <div className="my-3 flex items-baseline gap-2">
-              <span className="font-fantasy text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-amber-200 to-amber-400 tracking-tight">
+              <span
+                className="font-fantasy text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text tracking-tight"
+                style={{ backgroundImage: 'var(--neon-gradient)' }}
+              >
                 {completedPercentage}%
               </span>
               <span className="text-xs text-white/40">пройдено</span>
@@ -658,7 +661,7 @@ export default function BacklogPage() {
               {counts.playing > 0 ? (
                 <span>
                   🔥 Сейчас в процессе:{' '}
-                  <strong className="font-mono text-amber-300">{counts.playing}</strong>
+                  <strong className="font-mono text-[var(--neon-text)]">{counts.playing}</strong>
                 </span>
               ) : (
                 <span>
@@ -752,7 +755,7 @@ export default function BacklogPage() {
             </div>
           </div>
 
-          {/* Блок 3: Хранилище GameVault (2K Скриншоты и Сейвы) */}
+          {/* Блок 3: Хранилище Game archive (2K Скриншоты и Сейвы) */}
           <div className="md:col-span-3 rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider text-white/50 font-medium">
@@ -760,7 +763,7 @@ export default function BacklogPage() {
               </span>
               <Link
                 href="/"
-                className="inline-flex items-center gap-0.5 text-[11px] text-amber-400/80 hover:text-amber-300 transition-colors"
+                className="inline-flex items-center gap-0.5 text-[11px] text-[var(--neon-text)] hover:opacity-80 transition-opacity"
               >
                 <span>Витрина</span>
                 <ArrowUpRight size={12} />
@@ -769,13 +772,13 @@ export default function BacklogPage() {
 
             <div className="my-2 grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-black/30 p-2 border border-white/5">
-                <p className="font-mono text-xl font-bold text-amber-300">
+                <p className="font-mono text-xl font-bold text-[var(--neon-text)]">
                   {vaultStats.screenshots}
                 </p>
                 <p className="text-[10px] text-white/40">2K скринов/видео</p>
               </div>
               <div className="rounded-lg bg-black/30 p-2 border border-white/5">
-                <p className="font-mono text-xl font-bold text-indigo-300">
+                <p className="font-mono text-xl font-bold text-[var(--neon-secondary)]">
                   {vaultStats.saves}
                 </p>
                 <p className="text-[10px] text-white/40">бэкапов сейвов</p>
@@ -805,7 +808,7 @@ export default function BacklogPage() {
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Название игры... (нажми Enter для добавления)"
                 required
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
               />
             </div>
 
@@ -838,7 +841,7 @@ export default function BacklogPage() {
               onClick={() => setShowCoverInputs((prev) => !prev)}
               className={`flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-medium transition-all shrink-0 ${
                 newCoverPreview || newCoverUrl.trim()
-                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
+                  ? 'neon-badge'
                   : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -854,7 +857,7 @@ export default function BacklogPage() {
             <button
               type="submit"
               disabled={isAdding || !newTitle.trim()}
-              className="flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-50 shrink-0 shadow-lg shadow-amber-950/40"
+              className="flex items-center justify-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition disabled:opacity-50 shrink-0 neon-btn-primary"
             >
               {isAdding ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -875,7 +878,7 @@ export default function BacklogPage() {
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Заметка или оценка (например: 9/10, шедевр)..."
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
                 />
               </div>
 
@@ -922,7 +925,7 @@ export default function BacklogPage() {
                     }
                   }}
                   placeholder="Или вставьте URL ссылки..."
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
                 />
               </div>
 
@@ -1007,7 +1010,7 @@ export default function BacklogPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Поиск по названию и заметкам..."
-            className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+            className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
           />
           {searchQuery && (
             <button
@@ -1096,7 +1099,7 @@ export default function BacklogPage() {
                     />
                   ) : (
                     /* Стильная карточка-заглушка 2:3 с темным фэнтези градиентом */
-                    <div className="flex h-full w-full flex-col items-center justify-between p-4 text-center bg-gradient-to-br from-indigo-950/80 via-slate-900 to-[#10141d]">
+                    <div className="flex h-full w-full flex-col items-center justify-between p-4 text-center bg-gradient-to-br from-[var(--neon-badge-bg)] via-slate-900 to-[#10141d]">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/30 mt-4">
                         <Gamepad2 size={20} />
                       </div>
@@ -1109,7 +1112,7 @@ export default function BacklogPage() {
                         <button
                           type="button"
                           onClick={() => openCoverModal(item)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 rounded-lg bg-amber-600/90 hover:bg-amber-500 text-white px-2.5 py-1 text-xs font-medium shadow-lg mb-2"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 rounded-lg neon-btn-primary text-white px-2.5 py-1 text-xs font-medium shadow-lg mb-2"
                         >
                           <ImagePlus size={13} />
                           <span>Обложка</span>
@@ -1142,9 +1145,9 @@ export default function BacklogPage() {
                         type="button"
                         title="Присвоить награду (Зал Славы)"
                         onClick={() => openBadgeModal(item)}
-                        className={`flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 shadow-lg transition hover:bg-amber-600 hover:text-white ${
+                        className={`flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 shadow-lg transition hover:bg-[var(--neon-primary)] hover:text-white ${
                           item.badge
-                            ? 'text-amber-300 ring-1 ring-amber-400/40'
+                            ? 'text-[var(--neon-text)] ring-1 ring-[var(--neon-border)]'
                             : 'text-white/70'
                         }`}
                       >
@@ -1155,7 +1158,7 @@ export default function BacklogPage() {
                         type="button"
                         title="Сменить обложку"
                         onClick={() => openCoverModal(item)}
-                        className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-amber-600 hover:text-white"
+                        className="flex items-center justify-center rounded-lg bg-black/75 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-[var(--neon-primary)] hover:text-white"
                       >
                         <ImagePlus size={14} />
                       </button>
@@ -1187,7 +1190,7 @@ export default function BacklogPage() {
                 <div className="p-3 bg-[#0d1017]/95 border-t border-white/5 flex flex-col gap-1.5 flex-1 justify-between">
                   <div>
                     <h3
-                      className="truncate font-fantasy text-sm font-bold text-white group-hover:text-amber-300 transition-colors tracking-wide"
+                      className="truncate font-fantasy text-sm font-bold text-white group-hover:text-[var(--neon-text)] transition-colors tracking-wide"
                       title={item.title}
                     >
                       {item.title}
@@ -1208,7 +1211,7 @@ export default function BacklogPage() {
                       >
                         <MessageSquare
                           size={11}
-                          className="text-amber-400 shrink-0"
+                          className="text-[var(--neon-text)] shrink-0"
                         />
                         <span className="truncate">{item.note}</span>
                       </div>
@@ -1217,7 +1220,7 @@ export default function BacklogPage() {
                         <button
                           type="button"
                           onClick={() => openNoteModal(item)}
-                          className="mt-1 flex items-center gap-1 text-[11px] text-white/30 hover:text-amber-300 transition-colors opacity-0 group-hover:opacity-100"
+                          className="mt-1 flex items-center gap-1 text-[11px] text-white/30 hover:text-[var(--neon-text)] transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <MessageSquarePlus size={11} />
                           <span>+ заметка</span>
@@ -1263,7 +1266,7 @@ export default function BacklogPage() {
                 onClick={() => setCoverTab('upload')}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-medium transition-all ${
                   coverTab === 'upload'
-                    ? 'bg-amber-600 text-white shadow-sm'
+                    ? 'neon-btn-primary shadow-sm'
                     : 'text-white/60 hover:text-white'
                 }`}
               >
@@ -1275,7 +1278,7 @@ export default function BacklogPage() {
                 onClick={() => setCoverTab('url')}
                 className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-1.5 text-xs font-medium transition-all ${
                   coverTab === 'url'
-                    ? 'bg-amber-600 text-white shadow-sm'
+                    ? 'neon-btn-primary shadow-sm'
                     : 'text-white/60 hover:text-white'
                 }`}
               >
@@ -1304,7 +1307,7 @@ export default function BacklogPage() {
 
                 <div
                   onClick={() => editFileInputRef.current?.click()}
-                  className="relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-white/[0.02] p-6 hover:border-amber-500/50 hover:bg-white/5 transition-all text-center"
+                  className="relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-white/[0.02] p-6 hover:border-[var(--neon-primary)] hover:bg-white/5 transition-all text-center"
                 >
                   <Upload size={24} className="text-white/40" />
                   <p className="text-xs font-medium text-white/70">
@@ -1331,7 +1334,7 @@ export default function BacklogPage() {
                     setCoverPreview(e.target.value.trim());
                   }}
                   placeholder="https://images.example.com/poster.jpg"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
                 />
                 <p className="mt-1 text-[10px] text-white/30">
                   Вставьте URL постера из Steam или интернета
@@ -1403,7 +1406,7 @@ export default function BacklogPage() {
                     isSavingCover ||
                     (!coverFileInput && !coverUrlInput.trim() && !coverPreview)
                   }
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-medium text-white hover:bg-amber-500 transition-all disabled:opacity-40 shadow-lg shadow-amber-950/40"
+                  className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium text-white transition-all disabled:opacity-40 neon-btn-primary"
                 >
                   {isSavingCover ? (
                     <Loader2 size={13} className="animate-spin" />
@@ -1457,7 +1460,7 @@ export default function BacklogPage() {
                 value={noteInputDraft}
                 onChange={(e) => setNoteInputDraft(e.target.value)}
                 placeholder="Например: 9/10, шедевр, жду DLC..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
               />
 
               <div className="flex items-center justify-end gap-2 pt-2">
@@ -1472,7 +1475,7 @@ export default function BacklogPage() {
                 <button
                   type="submit"
                   disabled={isSavingNote}
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium text-white disabled:opacity-50 neon-btn-primary"
                 >
                   {isSavingNote ? (
                     <Loader2 size={13} className="animate-spin" />
@@ -1497,7 +1500,13 @@ export default function BacklogPage() {
             setBadgeModalItem(null)
           }
         >
-          <div className="relative w-full max-w-md rounded-2xl border border-amber-500/30 bg-[#0e121a] p-6 shadow-2xl shadow-amber-950/50">
+          <div
+            className="relative w-full max-w-md rounded-2xl border bg-[#0e121a] p-6 shadow-2xl"
+            style={{
+              borderColor: 'var(--neon-badge-border)',
+              boxShadow: '0 0 25px rgba(var(--neon-primary-rgb), 0.25)',
+            }}
+          >
             <button
               onClick={() => setBadgeModalItem(null)}
               disabled={isSavingBadge}
@@ -1507,7 +1516,7 @@ export default function BacklogPage() {
             </button>
 
             <div className="flex items-center gap-2 mb-1">
-              <Crown className="text-amber-400" size={20} />
+              <Crown className="text-[var(--neon-text)]" size={20} />
               <h2 className="font-fantasy text-lg font-bold text-white">
                 Зал Славы — Награда
               </h2>
@@ -1517,7 +1526,7 @@ export default function BacklogPage() {
             </p>
 
             {/* Выбор готовых пресетов медалек */}
-            <label className="block text-xs font-medium text-amber-200/80 mb-2">
+            <label className="block text-xs font-medium text-[var(--neon-text)] mb-2">
               Выберите награду:
             </label>
             <div className="grid grid-cols-2 gap-2 mb-4">
@@ -1533,7 +1542,7 @@ export default function BacklogPage() {
                     }}
                     className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-medium transition-all text-left ${
                       isSelected
-                        ? 'border-amber-400 bg-amber-500/20 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/40'
+                        ? 'neon-badge ring-1 ring-[var(--neon-border)] font-semibold'
                         : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'
                     }`}
                   >
@@ -1556,13 +1565,16 @@ export default function BacklogPage() {
                   setSelectedBadge(e.target.value);
                 }}
                 placeholder="Например: 🌟 Любимая игра, 🗡️ 150 часов..."
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-amber-500 focus:bg-white/10"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition neon-ring-focus focus:bg-white/10"
               />
             </div>
 
             {/* Предпросмотр золотого бейджа */}
             {selectedBadge.trim() && (
-              <div className="mb-5 flex flex-col items-center justify-center p-3 rounded-xl border border-amber-500/20 bg-black/40">
+              <div
+                className="mb-5 flex flex-col items-center justify-center p-3 rounded-xl border bg-black/40"
+                style={{ borderColor: 'var(--neon-badge-border)' }}
+              >
                 <span className="text-[11px] text-white/40 mb-1.5">
                   Предпросмотр на постере:
                 </span>
@@ -1602,7 +1614,7 @@ export default function BacklogPage() {
                   type="button"
                   onClick={() => handleSaveBadge(selectedBadge)}
                   disabled={isSavingBadge || !selectedBadge.trim()}
-                  className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-40 shadow-lg shadow-amber-950/40"
+                  className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium text-white disabled:opacity-40 neon-btn-primary"
                 >
                   {isSavingBadge ? (
                     <Loader2 size={13} className="animate-spin" />

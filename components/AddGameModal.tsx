@@ -90,7 +90,7 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
               onChange={(e) => setTitle(e.target.value)}
               required
               placeholder="Elden Ring"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition neon-ring-focus"
             />
           </div>
 
@@ -118,7 +118,7 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 py-6 text-white/40 transition hover:border-indigo-500/50 hover:text-indigo-400"
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 py-6 text-white/40 transition hover:border-[var(--neon-primary)] hover:text-[var(--neon-text)]"
               >
                 <Upload size={20} />
                 <span className="text-sm">Выбрать обложку</span>
@@ -133,7 +133,7 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
           <button
             type="submit"
             disabled={loading || !title.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition disabled:opacity-50 neon-btn-primary"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
             {loading ? 'Создание...' : 'Создать игру'}

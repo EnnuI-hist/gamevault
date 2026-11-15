@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogIn, LogOut, User, Gamepad2, LayoutGrid, ListTodo } from 'lucide-react';
+import { LogIn, LogOut, User, Gamepad2, LayoutGrid, ListTodo, Palette } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useTheme, THEMES } from '@/lib/context/ThemeContext';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const { user, loading, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [showAuth, setShowAuth] = useState(false);
   const pathname = usePathname();
 
@@ -17,18 +19,28 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#080a0f]/75 backdrop-blur-xl transition-colors duration-200">
+      <header className="sticky top-0 z-40 bg-[#080a0f]/80 backdrop-blur-xl transition-colors duration-200">
         {/* Тонкая неоновая светящаяся нижняя линия */}
-        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent pointer-events-none shadow-[0_1px_8px_rgba(6,182,212,0.4)]" />
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] neon-header-line pointer-events-none" />
 
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2.5 px-4 py-3 sm:px-6">
           {/* Логотип: Game archive EnnuI */}
           <Link href="/" prefetch={false} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
             {/* Тёмная стеклянная иконка с тонкой неоновой обводкой и мягким свечением */}
-            <div className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/40 bg-[#0c1017]/80 shadow-[0_0_15px_rgba(6,182,212,0.3)] backdrop-blur-md transition-all duration-300 group-hover:border-cyan-300 group-hover:shadow-[0_0_22px_rgba(6,182,212,0.6)]">
+            <div
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl border bg-[#0c1017]/80 backdrop-blur-md transition-all duration-300 group-hover:scale-105"
+              style={{
+                borderColor: 'var(--neon-border)',
+                boxShadow: '0 0 15px rgba(var(--neon-primary-rgb), 0.3)',
+              }}
+            >
               <Gamepad2
                 size={19}
-                className="text-cyan-400 transition-transform duration-300 group-hover:scale-110 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                className="transition-transform duration-300 group-hover:scale-110"
+                style={{
+                  color: 'var(--neon-primary)',
+                  filter: 'drop-shadow(0 0 8px rgba(var(--neon-primary-rgb), 0.8))',
+                }}
               />
             </div>
 
@@ -37,8 +49,21 @@ export default function Header() {
               <span className="font-sans text-sm sm:text-base font-medium tracking-wide text-white/90 group-hover:text-white transition-colors">
                 Game archive
               </span>
-              <span className="relative inline-flex items-center px-2 py-0.5 rounded-lg border border-cyan-400/50 bg-gradient-to-r from-cyan-500/20 via-sky-500/15 to-blue-500/20 shadow-[0_0_12px_rgba(6,182,212,0.35)] backdrop-blur-sm group-hover:border-cyan-300 group-hover:shadow-[0_0_18px_rgba(6,182,212,0.55)] transition-all">
-                <span className="font-orbitron text-xs sm:text-sm font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-200 to-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]">
+              <span
+                className="relative inline-flex items-center px-2 py-0.5 rounded-lg border backdrop-blur-sm transition-all duration-300 group-hover:scale-105"
+                style={{
+                  borderColor: 'var(--neon-badge-border)',
+                  background: 'var(--neon-badge-bg)',
+                  boxShadow: '0 0 12px rgba(var(--neon-primary-rgb), 0.35)',
+                }}
+              >
+                <span
+                  className="font-orbitron text-xs sm:text-sm font-black tracking-widest text-transparent bg-clip-text"
+                  style={{
+                    backgroundImage: 'var(--neon-gradient)',
+                    filter: 'drop-shadow(0 0 8px rgba(var(--neon-primary-rgb), 0.75))',
+                  }}
+                >
                   EnnuI
                 </span>
               </span>
@@ -52,7 +77,7 @@ export default function Header() {
               prefetch={false}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
                 isShowcase
-                  ? 'border border-cyan-400/40 bg-cyan-500/20 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+                  ? 'neon-badge'
                   : 'border border-transparent text-white/60 hover:bg-white/5 hover:text-white'
               }`}
             >
@@ -65,7 +90,7 @@ export default function Header() {
               prefetch={false}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
                 isList
-                  ? 'border border-cyan-400/40 bg-cyan-500/20 text-cyan-200 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+                  ? 'neon-badge'
                   : 'border border-transparent text-white/60 hover:bg-white/5 hover:text-white'
               }`}
             >
@@ -74,13 +99,47 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Авторизация */}
-          <div className="flex items-center gap-3 shrink-0">
+          {/* Правая часть: Переключатель тем и Авторизация */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            {/* Переключатель 4 неоновых тем */}
+            <div
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#0d121d]/80 px-2.5 py-1.5 backdrop-blur-md shadow-sm"
+              title="Переключить тему оформления"
+            >
+              <Palette size={13} className="text-white/40 hidden xs:inline" />
+              {THEMES.map((t) => {
+                const isActive = theme === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTheme(t.id)}
+                    title={t.name}
+                    aria-label={t.name}
+                    className={`relative h-4.5 w-4.5 sm:h-5 sm:w-5 rounded-full transition-all duration-300 ${
+                      isActive
+                        ? 'scale-115 ring-2 ring-white shadow-lg'
+                        : 'opacity-40 hover:opacity-100 hover:scale-110'
+                    }`}
+                    style={{
+                      backgroundColor: t.color,
+                      boxShadow: isActive ? `0 0 10px ${t.color}` : undefined,
+                    }}
+                  >
+                    {isActive && (
+                      <span className="absolute inset-0 m-auto h-1.5 w-1.5 rounded-full bg-white shadow-sm" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Авторизация */}
             {!loading && (
               user ? (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3">
                   <div className="hidden md:flex items-center gap-2 text-sm text-white/50 font-mono">
-                    <User size={14} className="text-cyan-400/80" />
+                    <User size={14} className="text-[var(--neon-text)]" />
                     <span className="max-w-[140px] truncate">{user.email}</span>
                   </div>
                   <button
@@ -94,7 +153,7 @@ export default function Header() {
               ) : (
                 <button
                   onClick={() => setShowAuth(true)}
-                  className="flex items-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3.5 py-1.5 text-xs sm:text-sm font-medium text-cyan-200 transition hover:bg-cyan-500/30 hover:border-cyan-300 hover:text-white shadow-[0_0_14px_rgba(6,182,212,0.25)]"
+                  className="flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs sm:text-sm font-medium neon-btn-primary"
                 >
                   <LogIn size={14} />
                   <span>Войти</span>

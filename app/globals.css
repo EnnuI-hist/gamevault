@@ -1,13 +1,95 @@
 @import "tailwindcss";
 
-:root {
+:root,
+[data-theme="cyan"] {
   color-scheme: dark;
   --font-heading: var(--font-unbounded), system-ui, -apple-system, sans-serif;
   --font-sans: var(--font-manrope), system-ui, -apple-system, sans-serif;
   --font-logo: var(--font-orbitron), system-ui, sans-serif;
   --font-code: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
-  /* Для плавной обратной совместимости существующих компонентов карточек и страниц */
   --font-fantasy: var(--font-heading);
+
+  /* Cyber Cyan (Default) */
+  --neon-primary: #06b6d4;
+  --neon-primary-rgb: 6, 182, 212;
+  --neon-secondary: #38bdf8;
+  --neon-secondary-rgb: 56, 189, 248;
+  --neon-btn-bg: #0891b2;
+  --neon-btn-hover: #06b6d4;
+  --neon-glow: 0 0 16px rgba(6, 182, 212, 0.45);
+  --neon-glow-lg: 0 0 25px rgba(6, 182, 212, 0.65);
+  --neon-border: rgba(6, 182, 212, 0.4);
+  --neon-border-hover: rgba(56, 189, 248, 0.85);
+  --neon-badge-bg: rgba(6, 182, 212, 0.15);
+  --neon-badge-border: rgba(6, 182, 212, 0.45);
+  --neon-text: #22d3ee;
+  --neon-text-dim: #67e8f9;
+  --neon-gradient: linear-gradient(135deg, #06b6d4 0%, #38bdf8 100%);
+  --neon-selection-bg: rgba(6, 182, 212, 0.3);
+  --neon-selection-text: #e0f2fe;
+}
+
+[data-theme="violet"] {
+  /* Synthwave Violet */
+  --neon-primary: #a855f7;
+  --neon-primary-rgb: 168, 85, 247;
+  --neon-secondary: #ec4899;
+  --neon-secondary-rgb: 236, 72, 153;
+  --neon-btn-bg: #9333ea;
+  --neon-btn-hover: #a855f7;
+  --neon-glow: 0 0 16px rgba(168, 85, 247, 0.45);
+  --neon-glow-lg: 0 0 25px rgba(168, 85, 247, 0.65);
+  --neon-border: rgba(168, 85, 247, 0.4);
+  --neon-border-hover: rgba(236, 72, 153, 0.85);
+  --neon-badge-bg: rgba(168, 85, 247, 0.15);
+  --neon-badge-border: rgba(168, 85, 247, 0.45);
+  --neon-text: #c084fc;
+  --neon-text-dim: #f472b6;
+  --neon-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  --neon-selection-bg: rgba(168, 85, 247, 0.3);
+  --neon-selection-text: #fae8ff;
+}
+
+[data-theme="emerald"] {
+  /* Matrix Emerald */
+  --neon-primary: #10b981;
+  --neon-primary-rgb: 16, 185, 129;
+  --neon-secondary: #34d399;
+  --neon-secondary-rgb: 52, 211, 153;
+  --neon-btn-bg: #059669;
+  --neon-btn-hover: #10b981;
+  --neon-glow: 0 0 16px rgba(16, 185, 129, 0.45);
+  --neon-glow-lg: 0 0 25px rgba(16, 185, 129, 0.65);
+  --neon-border: rgba(16, 185, 129, 0.4);
+  --neon-border-hover: rgba(52, 211, 153, 0.85);
+  --neon-badge-bg: rgba(16, 185, 129, 0.15);
+  --neon-badge-border: rgba(16, 185, 129, 0.45);
+  --neon-text: #34d399;
+  --neon-text-dim: #6ee7b7;
+  --neon-gradient: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  --neon-selection-bg: rgba(16, 185, 129, 0.3);
+  --neon-selection-text: #d1fae5;
+}
+
+[data-theme="crimson"] {
+  /* Crimson Blood */
+  --neon-primary: #f43f5e;
+  --neon-primary-rgb: 244, 63, 94;
+  --neon-secondary: #ef4444;
+  --neon-secondary-rgb: 239, 68, 68;
+  --neon-btn-bg: #e11d48;
+  --neon-btn-hover: #f43f5e;
+  --neon-glow: 0 0 16px rgba(244, 63, 94, 0.45);
+  --neon-glow-lg: 0 0 25px rgba(244, 63, 94, 0.65);
+  --neon-border: rgba(244, 63, 94, 0.4);
+  --neon-border-hover: rgba(239, 68, 68, 0.85);
+  --neon-badge-bg: rgba(244, 63, 94, 0.15);
+  --neon-badge-border: rgba(244, 63, 94, 0.45);
+  --neon-text: #fb7185;
+  --neon-text-dim: #fca5a5;
+  --neon-gradient: linear-gradient(135deg, #f43f5e 0%, #ef4444 100%);
+  --neon-selection-bg: rgba(244, 63, 94, 0.3);
+  --neon-selection-text: #ffe4e6;
 }
 
 * {
@@ -22,6 +104,11 @@ body {
   background-color: #07090e;
   color: #ffffff;
   font-family: var(--font-sans);
+}
+
+::selection {
+  background-color: var(--neon-selection-bg);
+  color: var(--neon-selection-text);
 }
 
 .font-heading,
@@ -42,13 +129,62 @@ body {
   font-family: var(--font-code);
 }
 
-/* Неоновые эффекты */
-.neon-glow-cyan {
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.75), 0 0 22px rgba(6, 182, 212, 0.45);
+/* Динамические неоновые кнопки */
+.neon-btn-primary {
+  background: var(--neon-btn-bg);
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(var(--neon-primary-rgb), 0.35);
+  transition: all 0.2s ease-out;
+}
+.neon-btn-primary:hover:not(:disabled) {
+  background: var(--neon-btn-hover);
+  box-shadow: 0 0 22px rgba(var(--neon-primary-rgb), 0.65);
+  transform: translateY(-1px);
+}
+.neon-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
-.neon-border-cyan {
-  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35);
+/* Динамические неоновые бейджи и индикаторы */
+.neon-badge {
+  background: var(--neon-badge-bg);
+  border: 1px solid var(--neon-badge-border);
+  color: var(--neon-text);
+  box-shadow: 0 0 12px rgba(var(--neon-primary-rgb), 0.25);
+}
+
+.neon-border-active {
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 14px rgba(var(--neon-primary-rgb), 0.35);
+}
+
+.neon-text-accent {
+  color: var(--neon-text);
+}
+
+.neon-text-glow {
+  color: var(--neon-text);
+  text-shadow: 0 0 12px rgba(var(--neon-primary-rgb), 0.7);
+}
+
+.neon-ring-focus:focus {
+  border-color: var(--neon-primary) !important;
+  box-shadow: 0 0 14px rgba(var(--neon-primary-rgb), 0.35);
+}
+
+/* Динамический Hover Glow для карточек */
+.neon-card-glow {
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+.neon-card-glow:hover {
+  border-color: var(--neon-border-hover) !important;
+  box-shadow: 0 0 22px rgba(var(--neon-primary-rgb), 0.35) !important;
+}
+
+/* Линия в шапке */
+.neon-header-line {
+  background: linear-gradient(90deg, transparent 0%, var(--neon-primary) 50%, transparent 100%);
+  box-shadow: 0 1px 10px rgba(var(--neon-primary-rgb), 0.5);
 }
 
 /* Плавная анимация золотого переливающегося бейджа */

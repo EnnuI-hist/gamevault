@@ -126,21 +126,21 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
       onClick={handleDownloadAll}
       disabled={isWorking}
       title="Скачать все скриншоты одним ZIP архивом"
-      className="relative flex items-center gap-2 overflow-hidden rounded-xl border border-white/10 bg-[#131720] px-4 py-2.5 text-sm font-medium text-white transition hover:border-indigo-500/50 hover:bg-white/5 hover:text-indigo-300 disabled:opacity-80 shrink-0"
+      className="relative flex items-center gap-2 overflow-hidden rounded-xl border border-white/10 bg-[#131720] px-4 py-2.5 text-sm font-medium text-white transition hover:border-[var(--neon-primary)] hover:bg-white/5 hover:text-[var(--neon-text)] disabled:opacity-80 shrink-0"
     >
       {/* Фоновый прогресс-бар при скачивании */}
       {isWorking && (
         <div
-          className="absolute inset-y-0 left-0 bg-indigo-600/30 transition-all duration-300 pointer-events-none"
+          className="absolute inset-y-0 left-0 bg-[var(--neon-badge-bg)] transition-all duration-300 pointer-events-none"
           style={{ width: `${percent}%` }}
         />
       )}
 
       <span className="relative z-10 flex items-center gap-2">
-        {isWorking && <Loader2 size={16} className="animate-spin text-indigo-400" />}
+        {isWorking && <Loader2 size={16} className="animate-spin text-[var(--neon-text)]" />}
         {status === 'done' && <Check size={16} className="text-green-400" />}
         {status === 'error' && <AlertCircle size={16} className="text-red-400" />}
-        {status === 'idle' && <Archive size={16} className="text-indigo-400" />}
+        {status === 'idle' && <Archive size={16} className="text-[var(--neon-text)]" />}
 
         <span>
           {status === 'idle' && 'Скачать фото (ZIP)'}

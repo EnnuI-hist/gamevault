@@ -96,7 +96,7 @@ export default function GamePageContent() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center">
-        <Loader2 size={36} className="animate-spin text-indigo-500" />
+        <Loader2 size={36} className="animate-spin text-[var(--neon-primary)]" />
         <p className="mt-4 text-sm text-white/40">Загрузка игры...</p>
       </div>
     );
@@ -114,7 +114,7 @@ export default function GamePageContent() {
         </p>
         <Link
           href="/"
-          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-500"
+          className="mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white transition neon-btn-primary"
         >
           <ArrowLeft size={16} />
           Вернуться на главную
@@ -210,7 +210,7 @@ export default function GamePageContent() {
             onClick={() => setActiveTab('gallery')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
               activeTab === 'gallery'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                ? 'neon-btn-primary shadow-lg'
                 : 'text-white/60 hover:bg-white/5 hover:text-white'
             }`}
           >
@@ -232,7 +232,7 @@ export default function GamePageContent() {
             onClick={() => setActiveTab('saves')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
               activeTab === 'saves'
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                ? 'neon-btn-primary shadow-lg'
                 : 'text-white/60 hover:bg-white/5 hover:text-white'
             }`}
           >
