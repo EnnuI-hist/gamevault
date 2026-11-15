@@ -76,51 +76,67 @@ export default function Header() {
         <div className="absolute bottom-0 left-0 right-0 h-[1px] neon-header-line pointer-events-none" />
 
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2.5 px-4 py-3 sm:px-6">
-          {/* Логотип: Game archive EnnuI */}
-          <Link href="/" prefetch={false} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-            {/* Тёмная стеклянная иконка с тонкой неоновой обводкой и мягким свечением */}
-            <div
-              className="relative flex h-9 w-9 items-center justify-center rounded-xl border bg-[#0c1017]/80 backdrop-blur-md transition-all duration-300 group-hover:scale-105"
-              style={{
-                borderColor: 'var(--neon-border)',
-                boxShadow: '0 0 15px rgba(var(--neon-primary-rgb), 0.3)',
-              }}
-            >
-              <Gamepad2
-                size={19}
-                className="transition-transform duration-300 group-hover:scale-110"
+          {/* Левая часть: Логотип + Крупные Кибер-часы */}
+          <div className="flex items-center gap-3 sm:gap-4 md:gap-5 shrink-0">
+            {/* Логотип: Game archive EnnuI */}
+            <Link href="/" prefetch={false} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
+              {/* Тёмная стеклянная иконка с тонкой неоновой обводкой и мягким свечением */}
+              <div
+                className="relative flex h-9 w-9 items-center justify-center rounded-xl border bg-[#0c1017]/80 backdrop-blur-md transition-all duration-300 group-hover:scale-105"
                 style={{
-                  color: 'var(--neon-primary)',
-                  filter: 'drop-shadow(0 0 8px rgba(var(--neon-primary-rgb), 0.8))',
-                }}
-              />
-            </div>
-
-            {/* Текстовая часть логотипа */}
-            <div className="flex items-center gap-2">
-              <span className="font-sans text-sm sm:text-base font-medium tracking-wide text-white/90 group-hover:text-white transition-colors">
-                Game archive
-              </span>
-              <span
-                className="relative inline-flex items-center px-2 py-0.5 rounded-lg border backdrop-blur-sm transition-all duration-300 group-hover:scale-105"
-                style={{
-                  borderColor: 'var(--neon-badge-border)',
-                  background: 'var(--neon-badge-bg)',
-                  boxShadow: '0 0 12px rgba(var(--neon-primary-rgb), 0.35)',
+                  borderColor: 'var(--neon-border)',
+                  boxShadow: '0 0 15px rgba(var(--neon-primary-rgb), 0.3)',
                 }}
               >
-                <span
-                  className="font-orbitron text-xs sm:text-sm font-black tracking-widest text-transparent bg-clip-text"
+                <Gamepad2
+                  size={19}
+                  className="transition-transform duration-300 group-hover:scale-110"
                   style={{
-                    backgroundImage: 'var(--neon-gradient)',
-                    filter: 'drop-shadow(0 0 8px rgba(var(--neon-primary-rgb), 0.75))',
+                    color: 'var(--neon-primary)',
+                    filter: 'drop-shadow(0 0 8px rgba(var(--neon-primary-rgb), 0.8))',
+                  }}
+                />
+              </div>
+
+              {/* Текстовая часть логотипа */}
+              <div className="flex items-center gap-2">
+                <span className="font-sans text-sm sm:text-base font-medium tracking-wide text-white/90 group-hover:text-white transition-colors">
+                  Game archive
+                </span>
+                <span
+                  className="relative inline-flex items-center px-2 py-0.5 rounded-lg border backdrop-blur-sm transition-all duration-300 group-hover:scale-105"
+                  style={{
+                    borderColor: 'var(--neon-badge-border)',
+                    background: 'var(--neon-badge-bg)',
+                    boxShadow: '0 0 12px rgba(var(--neon-primary-rgb), 0.35)',
                   }}
                 >
-                  EnnuI
+                  <span
+                    className="font-orbitron text-xs sm:text-sm font-black tracking-widest text-transparent bg-clip-text"
+                    style={{
+                      backgroundImage: 'var(--neon-gradient)',
+                      filter: 'drop-shadow(0 0 8px rgba(var(--neon-primary-rgb), 0.75))',
+                    }}
+                  >
+                    EnnuI
+                  </span>
                 </span>
-              </span>
-            </div>
-          </Link>
+              </div>
+            </Link>
+
+            {/* Тонкая вертикальная неоновая черта */}
+            <div
+              className="hidden md:block h-8 w-[1px] opacity-35"
+              style={{
+                background: 'linear-gradient(180deg, transparent 0%, var(--neon-primary) 50%, transparent 100%)',
+                boxShadow: '0 0 8px var(--neon-primary)',
+              }}
+              aria-hidden="true"
+            />
+
+            {/* Крупные неоновые кибер-часы */}
+            <CyberClock />
+          </div>
 
           {/* Навигационные табы: Витрина vs Список игр (Стеклянная капсула) */}
           <nav className="flex items-center gap-1 rounded-full border border-white/10 bg-[#0d111a]/80 p-1 backdrop-blur-md shadow-inner">
@@ -155,11 +171,8 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Правая часть: Часы, Переключатели тем, обоев, звука и Авторизация */}
+          {/* Правая часть: Переключатели тем, обоев, звука и Авторизация */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {/* Неоновые кибер-часы с бегущими секундами и индикатором ONLINE */}
-            <CyberClock />
-
             {/* Переключатель 4 неоновых тем */}
             <div
               className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#0d121d]/80 px-2.5 py-1.5 backdrop-blur-md shadow-sm"
