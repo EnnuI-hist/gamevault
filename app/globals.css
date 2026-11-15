@@ -98,6 +98,34 @@
 
 html {
   scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--neon-primary) #07090e;
+}
+
+/* Кастомный тонкий неоновый скроллбар страницы */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #07090e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neon-primary);
+  border-radius: 9999px;
+  box-shadow: 0 0 10px rgba(var(--neon-primary-rgb), 0.65);
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-secondary);
+  box-shadow: 0 0 16px rgba(var(--neon-primary-rgb), 0.95);
+}
+
+::-webkit-scrollbar-corner {
+  background: #07090e;
 }
 
 body {
@@ -107,8 +135,15 @@ body {
 }
 
 ::selection {
-  background-color: var(--neon-selection-bg);
-  color: var(--neon-selection-text);
+  background-color: rgba(var(--neon-primary-rgb), 0.35);
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(var(--neon-primary-rgb), 0.6);
+}
+
+::-moz-selection {
+  background-color: rgba(var(--neon-primary-rgb), 0.35);
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(var(--neon-primary-rgb), 0.6);
 }
 
 .font-heading,
@@ -360,4 +395,74 @@ body {
     transform: scale(1.25);
   }
 }
+
+/* Анимации живого HUD-эквалайзера */
+@keyframes hudEqualizer1 {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 13px;
+  }
+}
+
+@keyframes hudEqualizer2 {
+  0%, 100% {
+    height: 12px;
+  }
+  50% {
+    height: 5px;
+  }
+}
+
+@keyframes hudEqualizer3 {
+  0%, 100% {
+    height: 6px;
+  }
+  50% {
+    height: 15px;
+  }
+}
+
+@keyframes hudEqualizer4 {
+  0%, 100% {
+    height: 13px;
+  }
+  50% {
+    height: 4px;
+  }
+}
+
+.hud-eq-bar {
+  display: block;
+  width: 2.5px;
+  border-radius: 9999px;
+  background-color: var(--neon-primary);
+  box-shadow: 0 0 6px rgba(var(--neon-primary-rgb), 0.75);
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s, box-shadow 0.3s, opacity 0.3s;
+}
+
+.hud-eq-bar-muted {
+  height: 2px !important;
+  animation: none !important;
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: none !important;
+}
+
+.hud-eq-bar-1 {
+  animation: hudEqualizer1 0.75s ease-in-out infinite alternate;
+}
+
+.hud-eq-bar-2 {
+  animation: hudEqualizer2 0.55s ease-in-out infinite alternate 0.1s;
+}
+
+.hud-eq-bar-3 {
+  animation: hudEqualizer3 0.85s ease-in-out infinite alternate 0.2s;
+}
+
+.hud-eq-bar-4 {
+  animation: hudEqualizer4 0.65s ease-in-out infinite alternate 0.05s;
+}
+
 

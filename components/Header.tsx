@@ -25,6 +25,8 @@ import { useTheme, THEMES } from '@/lib/context/ThemeContext';
 import { useBackground, BACKGROUNDS } from '@/lib/context/BackgroundContext';
 import { isSoundEnabled, toggleSound, playClick, playHover } from '@/lib/sounds';
 import AuthModal from './AuthModal';
+import CyberClock from './CyberClock';
+import SoundEqualizer from './SoundEqualizer';
 
 export default function Header() {
   const { user, loading, signOut } = useAuth();
@@ -153,8 +155,11 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Правая часть: Переключатели тем, обоев, звука и Авторизация */}
+          {/* Правая часть: Часы, Переключатели тем, обоев, звука и Авторизация */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Неоновые кибер-часы с бегущими секундами и индикатором ONLINE */}
+            <CyberClock />
+
             {/* Переключатель 4 неоновых тем */}
             <div
               className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#0d121d]/80 px-2.5 py-1.5 backdrop-blur-md shadow-sm"
@@ -278,34 +283,39 @@ export default function Header() {
               )}
             </div>
 
-            {/* Аккуратная стеклянная кнопка переключения звука (Volume2 / VolumeX) */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = toggleSound();
-                if (next) playClick();
-              }}
-              onMouseEnter={playHover}
-              className={`flex items-center justify-center rounded-xl border px-2.5 py-1.5 text-xs font-medium backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer ${
-                soundEnabled
-                  ? 'border-[var(--neon-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.25)]'
-                  : 'border-white/10 bg-[#0d121d]/80 text-white/40 hover:bg-white/10 hover:text-white/80 hover:border-white/20'
-              }`}
-              title={soundEnabled ? 'Звук UI: Включен' : 'Звук UI: Выключен'}
-              aria-label={soundEnabled ? 'Выключить звук интерфейса' : 'Включить звук интерфейса'}
-            >
-              {soundEnabled ? (
-                <Volume2
-                  size={15}
-                  className="text-[var(--neon-text)] shrink-0 transition-transform duration-200 drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.6)]"
-                />
-              ) : (
-                <VolumeX
-                  size={15}
-                  className="text-white/40 shrink-0 transition-transform duration-200"
-                />
-              )}
-            </button>
+            {/* Кнопка переключения звука и живой индикатор (эквалайзер) */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = toggleSound();
+                  if (next) playClick();
+                }}
+                onMouseEnter={playHover}
+                className={`flex items-center justify-center rounded-xl border px-2.5 py-1.5 text-xs font-medium backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer ${
+                  soundEnabled
+                    ? 'border-[var(--neon-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.25)]'
+                    : 'border-white/10 bg-[#0d121d]/80 text-white/40 hover:bg-white/10 hover:text-white/80 hover:border-white/20'
+                }`}
+                title={soundEnabled ? 'Звук UI: Включен' : 'Звук UI: Выключен'}
+                aria-label={soundEnabled ? 'Выключить звук интерфейса' : 'Включить звук интерфейса'}
+              >
+                {soundEnabled ? (
+                  <Volume2
+                    size={15}
+                    className="text-[var(--neon-text)] shrink-0 transition-transform duration-200 drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.6)]"
+                  />
+                ) : (
+                  <VolumeX
+                    size={15}
+                    className="text-white/40 shrink-0 transition-transform duration-200"
+                  />
+                )}
+              </button>
+
+              {/* Живой анимированный эквалайзер из 4 тонких неоновых полосок */}
+              <SoundEqualizer soundEnabled={soundEnabled} />
+            </div>
 
             {/* Авторизация */}
             {!loading && (
