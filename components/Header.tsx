@@ -19,6 +19,7 @@ import {
   Shield,
   Volume2,
   VolumeX,
+  Tag,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useTheme, THEMES } from '@/lib/context/ThemeContext';
@@ -66,8 +67,9 @@ export default function Header() {
     };
   }, [showBgMenu]);
 
-  const isShowcase = pathname === '/' || pathname.startsWith('/game');
+  const isDeals = pathname === '/deals' || pathname.startsWith('/deals');
   const isList = pathname === '/list';
+  const isShowcase = (pathname === '/' || pathname.startsWith('/game')) && !isDeals && !isList;
 
   return (
     <>
@@ -160,7 +162,7 @@ export default function Header() {
               prefetch={false}
               onClick={playClick}
               onMouseEnter={playHover}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
+              className={`flex items-center gap-1.5 rounded-full px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
                 isList
                   ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
                   : 'border border-transparent text-white/60 hover:bg-white/5 hover:border-white/10 hover:text-white'
@@ -168,6 +170,21 @@ export default function Header() {
             >
               <ListTodo size={15} className={isList ? 'text-[var(--neon-text)] drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.6)]' : ''} />
               <span>Список игр</span>
+            </Link>
+
+            <Link
+              href="/deals"
+              prefetch={false}
+              onClick={playClick}
+              onMouseEnter={playHover}
+              className={`flex items-center gap-1.5 rounded-full px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all duration-200 active:scale-95 ${
+                isDeals
+                  ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
+                  : 'border border-transparent text-white/60 hover:bg-white/5 hover:border-white/10 hover:text-white'
+              }`}
+            >
+              <Tag size={15} className={isDeals ? 'text-[var(--neon-text)] drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.6)]' : ''} />
+              <span>Скидки</span>
             </Link>
           </nav>
 
