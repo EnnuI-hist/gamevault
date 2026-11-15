@@ -1,21 +1,23 @@
 import type { Metadata } from 'next';
-import { Inter, Cinzel, Cormorant_Garamond, JetBrains_Mono } from 'next/font/google';
+import { Manrope, Unbounded, Orbitron, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 
-const inter = Inter({ subsets: ['latin', 'cyrillic'], variable: '--font-inter' });
-
-const cinzel = Cinzel({
-  subsets: ['latin'],
-  weight: ['600', '700', '800'],
-  variable: '--font-cinzel',
+const manrope = Manrope({
+  subsets: ['latin', 'cyrillic'],
+  variable: '--font-manrope',
   display: 'swap',
 });
 
-const cormorant = Cormorant_Garamond({
+const unbounded = Unbounded({
   subsets: ['latin', 'cyrillic'],
-  weight: ['500', '600', '700'],
-  variable: '--font-cormorant',
+  variable: '--font-unbounded',
+  display: 'swap',
+});
+
+const orbitron = Orbitron({
+  subsets: ['latin'],
+  variable: '--font-orbitron',
   display: 'swap',
 });
 
@@ -26,8 +28,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'GameVault — Тёмный фэнтези лаунчер и игровой архив',
-  description: 'Личный облачный архив для хранения скриншотов, сохранений и бэклога игр в эстетике тёмного фэнтези',
+  title: 'Game archive EnnuI — Игровой архив и трекер бэклога',
+  description: 'Личный облачный архив скриншотов, сохранений и трекер прохождения игр EnnuI',
   other: {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     Pragma: 'no-cache',
@@ -43,18 +45,27 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`dark ${inter.variable} ${cinzel.variable} ${cormorant.variable} ${jetbrainsMono.variable}`}
+      className={`dark ${manrope.variable} ${unbounded.variable} ${orbitron.variable} ${jetbrainsMono.variable}`}
     >
       <head>
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
       </head>
-      <body className={`${inter.className} min-h-screen bg-[#07090e] text-white antialiased selection:bg-amber-500/30 selection:text-amber-200`}>
+      <body
+        className={`${manrope.className} min-h-screen bg-[#07090e] text-white antialiased selection:bg-cyan-500/30 selection:text-cyan-200`}
+      >
         <Header />
         <main>{children}</main>
-        <footer className="mt-16 border-t border-white/5 py-6 text-center text-xs text-white/30 font-mono">
-          GameVault • Dark Fantasy Game Vault & Tracker
+        <footer className="mt-16 border-t border-white/5 py-8 text-center text-xs text-white/35 font-mono">
+          <div className="flex items-center justify-center gap-2">
+            <span>Game archive</span>
+            <span className="font-orbitron font-bold tracking-wider text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.7)]">
+              EnnuI
+            </span>
+            <span>•</span>
+            <span>Личный игровой архив и трекер</span>
+          </div>
         </footer>
       </body>
     </html>

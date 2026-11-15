@@ -2,8 +2,12 @@
 
 :root {
   color-scheme: dark;
-  --font-fantasy: var(--font-cinzel), var(--font-cormorant), ui-serif, Georgia, serif;
+  --font-heading: var(--font-unbounded), system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-manrope), system-ui, -apple-system, sans-serif;
+  --font-logo: var(--font-orbitron), system-ui, sans-serif;
   --font-code: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+  /* Для плавной обратной совместимости существующих компонентов карточек и страниц */
+  --font-fantasy: var(--font-heading);
 }
 
 * {
@@ -17,14 +21,34 @@ html {
 body {
   background-color: #07090e;
   color: #ffffff;
+  font-family: var(--font-sans);
 }
 
+.font-heading,
 .font-fantasy {
-  font-family: var(--font-fantasy);
+  font-family: var(--font-heading);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-orbitron,
+.font-logo {
+  font-family: var(--font-logo);
 }
 
 .font-mono {
   font-family: var(--font-code);
+}
+
+/* Неоновые эффекты */
+.neon-glow-cyan {
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.75), 0 0 22px rgba(6, 182, 212, 0.45);
+}
+
+.neon-border-cyan {
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.35);
 }
 
 /* Плавная анимация золотого переливающегося бейджа */
