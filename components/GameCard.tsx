@@ -84,7 +84,7 @@ export default function GameCard({
         </div>
 
         {/* Информация под постером */}
-        <div className="p-3 bg-[#0f131c]/95 border-t border-white/5">
+        <div className="p-3 bg-[#0f131c]/80 backdrop-blur-md border-t border-white/5">
           <h3 className="truncate font-fantasy text-sm font-bold text-white group-hover:text-[var(--neon-text)] transition-colors tracking-wide">
             {game.title}
           </h3>

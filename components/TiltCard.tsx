@@ -83,7 +83,7 @@ export default function TiltCard({
             : 'transform 0.45s cubic-bezier(0.23, 1, 0.32, 1)',
           transformStyle: 'preserve-3d',
         }}
-        className={`relative overflow-hidden rounded-xl bg-[#10141d] transition-shadow duration-300 ${statusGlowClass} ${className}`}
+        className={`relative overflow-hidden rounded-xl bg-[#10141d]/80 backdrop-blur-md transition-shadow duration-300 ${statusGlowClass} ${className}`}
       >
         {children}
 

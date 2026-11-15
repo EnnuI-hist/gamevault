@@ -636,10 +636,10 @@ export default function BacklogPage() {
       </div>
 
       {/* Bento-панель статистики (Steam Big Picture / Cyber Neon) */}
-      <div className="mb-8 rounded-2xl border border-white/10 bg-gradient-to-br from-[#0e121a]/95 via-[#0b0e15]/95 to-[#080a0f]/95 p-5 shadow-2xl backdrop-blur-xl">
+      <div className="mb-8 rounded-2xl border border-white/10 bg-gradient-to-br from-[#0e121a]/80 via-[#0b0e15]/80 to-[#080a0f]/80 p-5 shadow-2xl backdrop-blur-xl">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Блок 1: Прогресс прохождения библиотеки */}
-          <div className="md:col-span-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+          <div className="md:col-span-4 rounded-xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider text-white/50 font-medium">
                 Прогресс трекера
@@ -674,7 +674,7 @@ export default function BacklogPage() {
           </div>
 
           {/* Блок 2: Сегментированный прогресс-бар по 4 статусам */}
-          <div className="md:col-span-5 rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+          <div className="md:col-span-5 rounded-xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs uppercase tracking-wider text-white/50 font-medium">
                 Статусы коллекции
@@ -756,7 +756,7 @@ export default function BacklogPage() {
           </div>
 
           {/* Блок 3: Хранилище Game archive (2K Скриншоты и Сейвы) */}
-          <div className="md:col-span-3 rounded-xl border border-white/5 bg-white/[0.02] p-4 flex flex-col justify-between">
+          <div className="md:col-span-3 rounded-xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider text-white/50 font-medium">
                 Хранилище Vault
@@ -796,7 +796,7 @@ export default function BacklogPage() {
       {user && (
         <form
           onSubmit={handleAddGame}
-          className="mb-8 rounded-2xl border border-white/10 bg-[#10141d]/90 p-4 sm:p-5 shadow-xl backdrop-blur-sm space-y-3.5"
+          className="mb-8 rounded-2xl border border-white/10 bg-[#10141d]/80 p-4 sm:p-5 shadow-xl backdrop-blur-md space-y-3.5"
         >
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
             {/* Название игры */}
@@ -1187,7 +1187,7 @@ export default function BacklogPage() {
                 </div>
 
                 {/* Нижняя часть карточки: Название и Заметка */}
-                <div className="p-3 bg-[#0d1017]/95 border-t border-white/5 flex flex-col gap-1.5 flex-1 justify-between">
+                <div className="p-3 bg-[#0d1017]/80 backdrop-blur-md border-t border-white/5 flex flex-col gap-1.5 flex-1 justify-between">
                   <div>
                     <h3
                       className="truncate font-fantasy text-sm font-bold text-white group-hover:text-[var(--neon-text)] transition-colors tracking-wide"

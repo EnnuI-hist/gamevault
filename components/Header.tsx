@@ -1,18 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LogIn, LogOut, User, Gamepad2, LayoutGrid, ListTodo, Palette } from 'lucide-react';
+import {
+  LogIn,
+  LogOut,
+  User,
+  Gamepad2,
+  LayoutGrid,
+  ListTodo,
+  Palette,
+  Layers,
+  Check,
+  Grid3X3,
+  Sparkles,
+  Hexagon,
+  Shield,
+} from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useTheme, THEMES } from '@/lib/context/ThemeContext';
+import { useBackground, BACKGROUNDS } from '@/lib/context/BackgroundContext';
 import AuthModal from './AuthModal';
 
 export default function Header() {
   const { user, loading, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { background, setBackground, currentBackground } = useBackground();
   const [showAuth, setShowAuth] = useState(false);
+  const [showBgMenu, setShowBgMenu] = useState(false);
+  const bgMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (bgMenuRef.current && !bgMenuRef.current.contains(event.target as Node)) {
+        setShowBgMenu(false);
+      }
+    };
+    if (showBgMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showBgMenu]);
 
   const isShowcase = pathname === '/' || pathname.startsWith('/game');
   const isList = pathname === '/list';
@@ -132,6 +164,86 @@ export default function Header() {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Компактный переключатель живых фонов */}
+            <div className="relative" ref={bgMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowBgMenu((prev) => !prev)}
+                className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium backdrop-blur-md transition-all duration-200 ${
+                  showBgMenu
+                    ? 'border-[var(--neon-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.3)]'
+                    : 'border-white/10 bg-[#0d121d]/80 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20'
+                }`}
+                title={`Живой фон: ${currentBackground.name}`}
+                aria-label="Сменить живой фон"
+                aria-expanded={showBgMenu}
+              >
+                <Layers
+                  size={14}
+                  className="text-[var(--neon-text)] shrink-0 transition-transform duration-200"
+                />
+                <span className="hidden sm:inline font-sans">{currentBackground.label}</span>
+              </button>
+
+              {/* Выпадающее меню выбора фона */}
+              {showBgMenu && (
+                <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-white/10 bg-[#0c1017]/95 p-2 shadow-2xl backdrop-blur-2xl z-50 animate-fade-in">
+                  <div className="px-2.5 py-1.5 border-b border-white/5 mb-1.5 flex items-center justify-between">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-white/40">
+                      Живой фон
+                    </span>
+                    <span className="text-[10px] font-mono text-[var(--neon-text)]">
+                      4 режима
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {BACKGROUNDS.map((bg) => {
+                      const isActive = background === bg.id;
+                      return (
+                        <button
+                          key={bg.id}
+                          type="button"
+                          onClick={() => {
+                            setBackground(bg.id);
+                            setShowBgMenu(false);
+                          }}
+                          className={`flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all ${
+                            isActive
+                              ? 'bg-white/10 text-white border border-[var(--neon-border)] shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.2)]'
+                              : 'text-white/70 hover:bg-white/5 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          <div className="mt-0.5 shrink-0 text-[var(--neon-text)]">
+                            {bg.id === 'cyber-grid' && <Grid3X3 size={15} />}
+                            {bg.id === 'nebula-abyss' && <Sparkles size={15} />}
+                            {bg.id === 'dark-hex' && <Hexagon size={15} />}
+                            {bg.id === 'pure-obsidian' && <Shield size={15} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-fantasy text-xs font-semibold tracking-wide">
+                                {bg.name}
+                              </span>
+                              {isActive && (
+                                <Check
+                                  size={14}
+                                  className="text-[var(--neon-text)] shrink-0 drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.8)]"
+                                />
+                              )}
+                            </div>
+                            <p className="text-[10px] text-white/40 leading-tight mt-0.5">
+                              {bg.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Авторизация */}
