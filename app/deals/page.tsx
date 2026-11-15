@@ -30,26 +30,75 @@ import type { BacklogItem } from '@/lib/types';
 import AuthModal from '@/components/AuthModal';
 
 const PLANNED_CACHE_KEY = 'gamevault_deals_planned_cache';
-const RUB_RATE_CACHE_KEY = 'gamevault_rub_rate';
+const UAH_RUB_CACHE_KEY = 'gamevault_uah_rub_rate';
 const CURRENCY_STORAGE_KEY = 'gamevault_deals_currency';
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
-const FALLBACK_RUB_RATE = 98;
+const FALLBACK_UAH_RUB = 2.4;
+const USD_TO_UAH_ESTIMATE = 41.5;
 
-type Currency = 'RUB' | 'USD';
+type Currency = 'UAH' | 'RUB';
 
-// Функция форматирования цены в рублях или долларах
-function formatPrice(usdPrice: string | number, currency: Currency, rubRate: number): string {
-  const usd = typeof usdPrice === 'number' ? usdPrice : parseFloat(usdPrice);
-  if (isNaN(usd)) return String(usdPrice);
+export interface SteamPriceData {
+  initial: number; // старая цена в копейках (e.g. 179900)
+  final: number; // текущая цена в копейках (e.g. 89900)
+  discount_percent: number; // процент скидки (e.g. 50)
+  currency?: string; // e.g. 'UAH'
+}
 
-  if (currency === 'USD') {
-    return `$${usd.toFixed(2)}`;
+// Форматирование цены в гривнах или рублях
+function formatPrice(uahAmount: number, currency: Currency, uahToRubRate: number): string {
+  if (currency === 'UAH') {
+    const rounded = Math.round(uahAmount);
+    return `${rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} ₴`;
+  }
+  const rub = Math.round(uahAmount * uahToRubRate);
+  return `${rub.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} ₽`;
+}
+
+// Извлечение отображаемой цены и скидки (с приоритетом реального Steam UA cc=ua)
+function getDealDisplayPrices(
+  deal: CheapSharkDeal,
+  steamPrice: SteamPriceData | undefined,
+  currency: Currency,
+  uahToRubRate: number
+) {
+  // Если есть реальные региональные данные украинского Steam (cc=ua)
+  if (steamPrice && typeof steamPrice.final === 'number') {
+    const saleUah = steamPrice.final / 100;
+    const normalUah = steamPrice.initial / 100;
+    const discount = steamPrice.discount_percent;
+    const hasDiscount = discount > 0 && normalUah > saleUah;
+
+    return {
+      discount,
+      hasDiscount,
+      saleFormatted: formatPrice(saleUah, currency, uahToRubRate),
+      normalFormatted: formatPrice(normalUah, currency, uahToRubRate),
+      savingsFormatted: hasDiscount
+        ? formatPrice(normalUah - saleUah, currency, uahToRubRate)
+        : '',
+      isSteamUa: true,
+    };
   }
 
-  // Режим ₽ RUB: умножаем на актуальный курс, округляем до целого числа и разделяем разряды пробелами
-  const rub = Math.round(usd * rubRate);
-  const formattedNumber = rub.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return `${formattedNumber} ₽`;
+  // Запасной вариант (если Cloudflare Worker недоступен): пересчёт из CheapShark USD
+  const usdSale = parseFloat(deal.salePrice) || 0;
+  const usdNormal = parseFloat(deal.normalPrice) || 0;
+  const discount = Math.round(parseFloat(deal.savings)) || 0;
+  const saleUah = usdSale * USD_TO_UAH_ESTIMATE;
+  const normalUah = usdNormal * USD_TO_UAH_ESTIMATE;
+  const hasDiscount = discount > 0 && normalUah > saleUah;
+
+  return {
+    discount,
+    hasDiscount,
+    saleFormatted: formatPrice(saleUah, currency, uahToRubRate),
+    normalFormatted: formatPrice(normalUah, currency, uahToRubRate),
+    savingsFormatted: hasDiscount
+      ? formatPrice(normalUah - saleUah, currency, uahToRubRate)
+      : '',
+    isSteamUa: false,
+  };
 }
 
 // Перевод оценок Steam на русский язык
@@ -89,9 +138,12 @@ export default function DealsPage() {
   // Состояние авторизации
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Валюта и курс рубля
-  const [currency, setCurrency] = useState<Currency>('RUB');
-  const [rubRate, setRubRate] = useState<number>(FALLBACK_RUB_RATE);
+  // Валюта (по умолчанию ₴ UAH Steam UA) и курс гривны к рублю
+  const [currency, setCurrency] = useState<Currency>('UAH');
+  const [uahToRubRate, setUahToRubRate] = useState<number>(FALLBACK_UAH_RUB);
+
+  // Кэш региональных цен украинского Steam (cc=ua) по steamAppID
+  const [steamPrices, setSteamPrices] = useState<Record<string, SteamPriceData>>({});
 
   // Блок 1: Скидки на вишлист
   const [plannedDeals, setPlannedDeals] = useState<PlannedMatch[]>([]);
@@ -115,45 +167,83 @@ export default function DealsPage() {
   const [backlogTitleSet, setBacklogTitleSet] = useState<Set<string>>(new Set());
   const [addingDealId, setAddingDealId] = useState<string | null>(null);
 
-  // 1. Загрузка курса доллара к рублю через API open.er-api.com с кэшированием на 6 часов
-  const loadRubRate = useCallback(async () => {
+  // 1. Загрузка курса гривны к рублю через API open.er-api.com с кэшированием на 6 часов
+  const loadUahToRubRate = useCallback(async () => {
     try {
-      const cached = localStorage.getItem(RUB_RATE_CACHE_KEY);
+      const cached = localStorage.getItem(UAH_RUB_CACHE_KEY);
       if (cached) {
         const { rate, timestamp } = JSON.parse(cached);
         if (typeof rate === 'number' && rate > 0 && Date.now() - timestamp < SIX_HOURS_MS) {
-          setRubRate(rate);
+          setUahToRubRate(rate);
           return;
         }
       }
     } catch {}
 
     try {
-      const res = await fetch('https://open.er-api.com/v6/latest/USD');
+      const res = await fetch('https://open.er-api.com/v6/latest/UAH');
       if (!res.ok) throw new Error('API er-api.com returned non-200');
       const data = await res.json();
       const rub = data?.rates?.RUB;
       if (typeof rub === 'number' && rub > 0) {
-        setRubRate(rub);
+        setUahToRubRate(rub);
         try {
           localStorage.setItem(
-            RUB_RATE_CACHE_KEY,
+            UAH_RUB_CACHE_KEY,
             JSON.stringify({ rate: rub, timestamp: Date.now() })
           );
         } catch {}
         return;
       }
     } catch (err) {
-      console.warn('Не удалось загрузить курс рубля через er-api.com, используется запасной курс 98:', err);
+      console.warn('Не удалось загрузить курс UAH->RUB через er-api.com, используется запасной курс 2.4:', err);
     }
-    setRubRate(FALLBACK_RUB_RATE);
+    setUahToRubRate(FALLBACK_UAH_RUB);
   }, []);
 
-  // 2. Загрузка вишлиста из Supabase и проверка скидок через CheapShark API
+  // 2. Пакетная загрузка региональных цен украинского Steam (cc=ua) через Cloudflare Worker с таймаутом 6 секунд
+  const fetchSteamPrices = useCallback(async (ids: string[]) => {
+    const validIds = Array.from(
+      new Set(ids.map((id) => id?.trim()).filter((id) => Boolean(id) && id !== '0'))
+    );
+    if (validIds.length === 0) return;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    try {
+      const rawBase = process.env.NEXT_PUBLIC_STEAM_WORKER_URL || 'https://workers.dev';
+      const baseUrl = rawBase.trim().replace(/\/+$/, '');
+      const sep = baseUrl.includes('?') ? '&' : '?';
+      const url = `${baseUrl}${sep}appids=${validIds.join(',')}&cc=ua`;
+
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!res.ok) throw new Error(`Steam worker response: ${res.status}`);
+      const json = await res.json();
+
+      const priceMap: Record<string, SteamPriceData> = {};
+      for (const appId of validIds) {
+        const item = json[appId];
+        if (item && item.success && item.data && item.data.price_overview) {
+          priceMap[appId] = item.data.price_overview;
+        }
+      }
+
+      if (Object.keys(priceMap).length > 0) {
+        setSteamPrices((prev) => ({ ...prev, ...priceMap }));
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn('Загрузка цен Steam UA (cc=ua) прервана или завершилась ошибкой (используются запасные цены):', err);
+    }
+  }, []);
+
+  // 3. Загрузка вишлиста из Supabase и проверка скидок через CheapShark API
   const loadPlannedDiscounts = useCallback(async (forceFresh = false) => {
     setLoadingPlanned(true);
     try {
-      // Проверяем кэш
       if (!forceFresh) {
         try {
           const cached = sessionStorage.getItem(PLANNED_CACHE_KEY);
@@ -163,6 +253,9 @@ export default function DealsPage() {
               setPlannedDeals(parsed.deals);
               setTotalPlannedCount(parsed.totalCount ?? 0);
               setLoadingPlanned(false);
+              // Запрашиваем цены Steam UA для закэшированных игр
+              const ids = parsed.deals.map((m: PlannedMatch) => m.deal.steamAppID);
+              fetchSteamPrices(ids);
               return;
             }
           }
@@ -213,14 +306,18 @@ export default function DealsPage() {
           JSON.stringify({ deals: matches, totalCount: games.length, time: Date.now() })
         );
       } catch {}
+
+      // Запрашиваем региональные цены Steam UA (cc=ua)
+      const plannedSteamIds = matches.map((m) => m.deal.steamAppID);
+      fetchSteamPrices(plannedSteamIds);
     } catch (err) {
       console.error('Ошибка проверки скидок на вишлист:', err);
     } finally {
       setLoadingPlanned(false);
     }
-  }, [supabase]);
+  }, [supabase, fetchSteamPrices]);
 
-  // 3. Загрузка общего каталога акций Steam
+  // 4. Загрузка общего каталога акций Steam
   const loadSteamDeals = useCallback(
     async (page = 0, isAppend = false) => {
       if (page === 0) setLoadingDeals(true);
@@ -247,6 +344,10 @@ export default function DealsPage() {
 
         setHasMore(newDeals.length >= 48);
         setPageNumber(page);
+
+        // Пакетно подтягиваем украинские региональные цены Steam для новых карточек
+        const ids = newDeals.map((d) => d.steamAppID);
+        fetchSteamPrices(ids);
       } catch (err) {
         console.error('Ошибка загрузки акций Steam:', err);
         setErrorDeals('Не удалось загрузить скидки Steam. Попробуйте обновить страницу.');
@@ -255,10 +356,10 @@ export default function DealsPage() {
         setLoadingMore(false);
       }
     },
-    [sortBy, searchQuery]
+    [sortBy, searchQuery, fetchSteamPrices]
   );
 
-  // 4. Загрузка всех существующих игр из бэклога для отметки «В планах»
+  // 5. Загрузка всех существующих игр из бэклога для отметки «В планах»
   const loadAllBacklogTitles = useCallback(async () => {
     try {
       const { data } = await supabase.from('game_backlog').select('title');
@@ -273,18 +374,17 @@ export default function DealsPage() {
 
   // Начальная загрузка при монтировании
   useEffect(() => {
-    // Восстанавливаем сохранённую валюту (по умолчанию RUB)
     try {
       const savedCurr = localStorage.getItem(CURRENCY_STORAGE_KEY) as Currency;
-      if (savedCurr === 'RUB' || savedCurr === 'USD') {
+      if (savedCurr === 'UAH' || savedCurr === 'RUB') {
         setCurrency(savedCurr);
       }
     } catch {}
 
-    loadRubRate();
+    loadUahToRubRate();
     loadPlannedDiscounts();
     loadAllBacklogTitles();
-  }, [loadRubRate, loadPlannedDiscounts, loadAllBacklogTitles]);
+  }, [loadUahToRubRate, loadPlannedDiscounts, loadAllBacklogTitles]);
 
   // Загрузка акций при смене сортировки или запроса поиска
   useEffect(() => {
@@ -295,14 +395,18 @@ export default function DealsPage() {
     return () => clearTimeout(timer);
   }, [loadSteamDeals, searchQuery, sortBy]);
 
-  // Фильтрация акций по минимальному порогу скидки
+  // Фильтрация акций по минимальному порогу скидки (с учётом реальной скидки Steam UA, если она есть)
   const filteredDeals = useMemo(() => {
     return deals.filter((deal) => {
-      const savings = parseFloat(deal.savings);
-      if (minSavings > 0 && savings < minSavings) return false;
+      const steamPrice = steamPrices[deal.steamAppID];
+      const discount = steamPrice && typeof steamPrice.discount_percent === 'number'
+        ? steamPrice.discount_percent
+        : Math.round(parseFloat(deal.savings));
+
+      if (minSavings > 0 && discount < minSavings) return false;
       return true;
     });
-  }, [deals, minSavings]);
+  }, [deals, minSavings, steamPrices]);
 
   // Переключение валюты
   const handleCurrencyChange = (newCurr: Currency) => {
@@ -323,12 +427,16 @@ export default function DealsPage() {
     setAddingDealId(deal.dealID);
     try {
       const headerUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/header.jpg`;
-      const discount = Math.round(parseFloat(deal.savings));
-      const priceText = formatPrice(deal.salePrice, currency, rubRate);
+      const priceInfo = getDealDisplayPrices(
+        deal,
+        steamPrices[deal.steamAppID],
+        currency,
+        uahToRubRate
+      );
 
-      const noteText = discount > 0
-        ? `Steam скидка -${discount}% (${priceText})`
-        : `Steam (${priceText})`;
+      const noteText = priceInfo.hasDiscount
+        ? `Steam UA -${priceInfo.discount}% (${priceInfo.saleFormatted})`
+        : `Steam UA (${priceInfo.saleFormatted})`;
 
       const { data, error } = await supabase
         .from('game_backlog')
@@ -353,7 +461,7 @@ export default function DealsPage() {
       });
 
       // Добавляем в блок вишлиста, если есть скидка
-      if (data && discount > 0) {
+      if (data && priceInfo.hasDiscount) {
         setPlannedDeals((prev) => [
           { plannedItem: data as BacklogItem, deal },
           ...prev,
@@ -395,14 +503,14 @@ export default function DealsPage() {
                   style={{ backgroundColor: 'var(--neon-primary)', boxShadow: '0 0 8px var(--neon-primary)' }}
                 />
               </span>
-              <span>CheapShark Steam API • 1 $ ≈ {Math.round(rubRate)} ₽</span>
+              <span>Steam UA (cc=ua) • 1 ₴ ≈ {uahToRubRate.toFixed(2)} ₽</span>
             </div>
 
             <h1 className="font-fantasy text-2xl sm:text-3xl md:text-4xl font-black tracking-wide text-white">
               Скидки и распродажи Steam
             </h1>
             <p className="max-w-2xl text-xs sm:text-sm text-white/60">
-              Мониторинг лучших цен Steam в реальном времени с автоматической проверкой скидок на игры из вашего личного списка «В планах».
+              Мониторинг реальных региональных цен украинского Steam (cc=ua) с автоматической проверкой скидок на игры из вашего личного списка «В планах».
             </p>
           </div>
 
@@ -412,14 +520,14 @@ export default function DealsPage() {
               type="button"
               onClick={() => {
                 playClick();
-                loadRubRate();
+                loadUahToRubRate();
                 loadPlannedDiscounts(true);
                 loadSteamDeals(0, false);
               }}
               onMouseEnter={playHover}
               disabled={loadingPlanned || loadingDeals}
               className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs sm:text-sm font-medium text-white/80 backdrop-blur-md transition-all hover:bg-white/10 hover:border-white/30 hover:text-white active:scale-95 disabled:opacity-50 cursor-pointer shadow-sm"
-              title="Обновить акции и курс валют прямо сейчас"
+              title="Обновить акции и курсы прямо сейчас"
             >
               <RefreshCw size={14} className={loadingPlanned || loadingDeals ? 'animate-spin text-[var(--neon-primary)]' : ''} />
               <span>Обновить цены</span>
@@ -464,7 +572,7 @@ export default function DealsPage() {
                 )}
               </h2>
               <p className="text-xs text-white/50">
-                Игры из вашего вишлиста, на которые прямо сейчас действует скидка в Steam
+                Игры из вашего вишлиста, на которые прямо сейчас действует скидка в украинском Steam
               </p>
             </div>
           </div>
@@ -481,10 +589,10 @@ export default function DealsPage() {
         ) : plannedDeals.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {plannedDeals.map(({ plannedItem, deal }) => {
-              const discount = Math.round(parseFloat(deal.savings));
+              const steamPrice = steamPrices[deal.steamAppID];
+              const priceInfo = getDealDisplayPrices(deal, steamPrice, currency, uahToRubRate);
               const headerImg = `https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/header.jpg`;
               const metacritic = parseInt(deal.metacriticScore, 10);
-              const savingsAmount = parseFloat(deal.normalPrice) - parseFloat(deal.salePrice);
 
               return (
                 <div
@@ -507,14 +615,14 @@ export default function DealsPage() {
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
 
-                    {/* Бейдж размера скидки (только если > 0) */}
-                    {discount > 0 && (
+                    {/* Бейдж размера скидки (скрывается, если discount_percent <= 0) */}
+                    {priceInfo.hasDiscount && (
                       <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1 font-mono text-sm font-black text-white shadow-lg ring-1 ring-white/20">
-                        <span>-{discount}%</span>
+                        <span>-{priceInfo.discount}%</span>
                       </div>
                     )}
 
-                    {/* Метка "Из вишлиста" */}
+                    {/* Метка "В планах" */}
                     <div className="absolute top-2.5 left-2.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 px-2 py-0.5 text-[10px] font-mono text-white/90">
                       В планах
                     </div>
@@ -559,9 +667,9 @@ export default function DealsPage() {
                     {/* Цены */}
                     <div className="pt-2 border-t border-white/5 flex items-center justify-between">
                       <div className="flex items-baseline gap-2">
-                        {discount > 0 && (
+                        {priceInfo.hasDiscount && (
                           <span className="text-xs font-mono text-white/40 line-through">
-                            {formatPrice(deal.normalPrice, currency, rubRate)}
+                            {priceInfo.normalFormatted}
                           </span>
                         )}
                         <span
@@ -571,13 +679,13 @@ export default function DealsPage() {
                             textShadow: '0 0 12px rgba(var(--neon-primary-rgb), 0.8)',
                           }}
                         >
-                          {formatPrice(deal.salePrice, currency, rubRate)}
+                          {priceInfo.saleFormatted}
                         </span>
                       </div>
 
-                      {discount > 0 && savingsAmount > 0 && (
+                      {priceInfo.hasDiscount && priceInfo.savingsFormatted && (
                         <span className="text-[11px] font-mono text-emerald-400 font-semibold">
-                          Экономия {formatPrice(savingsAmount, currency, rubRate)}
+                          Экономия {priceInfo.savingsFormatted}
                         </span>
                       )}
                     </div>
@@ -667,7 +775,7 @@ export default function DealsPage() {
                 Актуальные акции и распродажи Steam
               </h2>
               <p className="text-xs text-white/50">
-                Лучшие предложения, горячие новинки и самые большие скидки в каталоге Steam
+                Региональные украинские цены Steam (cc=ua) с поддержкой конвертации в рубли
               </p>
             </div>
           </div>
@@ -705,18 +813,25 @@ export default function DealsPage() {
 
           {/* Панель правых переключателей */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Стеклянно-неоновый переключатель валюты ₽ RUB / $ USD */}
+            {/* Стеклянно-неоновый переключатель валюты ₴ UAH / ₽ RUB */}
             <div
               className="flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shrink-0"
-              title={`Курс валют: 1 USD ≈ ${rubRate.toFixed(1)} RUB (обновляется через er-api.com)`}
+              title={
+                currency === 'UAH'
+                  ? '₴ UAH (Steam UA) — точные оригинальные цены украинского региона Steam'
+                  : `₽ RUB (по курсу) — 1 ₴ ≈ ${uahToRubRate.toFixed(2)} ₽`
+              }
             >
-              {(['RUB', 'USD'] as const).map((curr) => {
-                const isActive = currency === curr;
+              {[
+                { key: 'UAH', label: '₴ UAH (Steam UA)' },
+                { key: 'RUB', label: '₽ RUB (по курсу)' },
+              ].map((tab) => {
+                const isActive = currency === tab.key;
                 return (
                   <button
-                    key={curr}
+                    key={tab.key}
                     type="button"
-                    onClick={() => handleCurrencyChange(curr)}
+                    onClick={() => handleCurrencyChange(tab.key as Currency)}
                     onMouseEnter={playHover}
                     className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer ${
                       isActive
@@ -724,7 +839,7 @@ export default function DealsPage() {
                         : 'text-white/60 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    {curr === 'RUB' ? '₽ RUB' : '$ USD'}
+                    {tab.label}
                   </button>
                 );
               })}
@@ -812,7 +927,8 @@ export default function DealsPage() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
               {filteredDeals.map((deal) => {
-                const discount = Math.round(parseFloat(deal.savings));
+                const steamPrice = steamPrices[deal.steamAppID];
+                const priceInfo = getDealDisplayPrices(deal, steamPrice, currency, uahToRubRate);
                 const headerImg = `https://cdn.akamai.steamstatic.com/steam/apps/${deal.steamAppID}/header.jpg`;
                 const metacritic = parseInt(deal.metacriticScore, 10);
                 const isAlreadyPlanned = backlogTitleSet.has(deal.title.toLowerCase().trim());
@@ -835,10 +951,10 @@ export default function DealsPage() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
 
-                      {/* Скидка в правом верхнем углу (ТОЛЬКО если скидка > 0%) */}
-                      {discount > 0 && (
+                      {/* Скидка в правом верхнем углу (ТОЛЬКО если discount_percent > 0%) */}
+                      {priceInfo.hasDiscount && (
                         <div className="absolute top-2 right-2 rounded-lg bg-rose-600 px-2 py-0.5 font-mono text-xs font-black text-white shadow-md">
-                          -{discount}%
+                          -{priceInfo.discount}%
                         </div>
                       )}
 
@@ -882,9 +998,9 @@ export default function DealsPage() {
                       {/* Цены: если discount <= 0%, зачёркнутая старая цена скрывается */}
                       <div className="pt-2 border-t border-white/5 flex items-baseline justify-between">
                         <div className="flex items-baseline gap-2">
-                          {discount > 0 && (
+                          {priceInfo.hasDiscount && (
                             <span className="text-xs font-mono text-white/40 line-through">
-                              {formatPrice(deal.normalPrice, currency, rubRate)}
+                              {priceInfo.normalFormatted}
                             </span>
                           )}
                           <span
@@ -894,7 +1010,7 @@ export default function DealsPage() {
                               textShadow: '0 0 10px rgba(var(--neon-primary-rgb), 0.7)',
                             }}
                           >
-                            {formatPrice(deal.salePrice, currency, rubRate)}
+                            {priceInfo.saleFormatted}
                           </span>
                         </div>
 
