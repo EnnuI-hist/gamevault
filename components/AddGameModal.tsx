@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import { X, Plus, Upload, Loader2 } from 'lucide-react';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { slugify } from '@/lib/utils';
 
@@ -105,7 +104,8 @@ export default function AddGameModal({ onClose, onAdded }: AddGameModalProps) {
             />
             {coverPreview ? (
               <div className="relative h-44 overflow-hidden rounded-xl border border-white/10">
-                <Image src={coverPreview} alt="Обложка" fill className="object-cover" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={coverPreview} alt="Обложка" className="h-full w-full object-cover" />
                 <button
                   type="button"
                   onClick={() => { setCoverFile(null); setCoverPreview(''); }}

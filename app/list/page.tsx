@@ -21,8 +21,8 @@ import {
   Crown,
   Sparkles,
   ArrowUpRight,
+  AlertCircle,
 } from 'lucide-react';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { resolveMediaUrl } from '@/lib/utils';
@@ -129,6 +129,7 @@ export default function BacklogPage() {
   const [selectedBadge, setSelectedBadge] = useState('');
   const [customBadgeInput, setCustomBadgeInput] = useState('');
   const [isSavingBadge, setIsSavingBadge] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const supabase = createClient();
 
@@ -143,22 +144,35 @@ export default function BacklogPage() {
 
   const loadBacklog = async (showLoading = false) => {
     if (showLoading) setLoading(true);
-    // Оптимизированный запрос к таблице game_backlog
-    const { data, error } = await supabase
-      .from('game_backlog')
-      .select('id, title, status, note, cover_url, badge, created_at')
-      .order('created_at', { ascending: false });
+    try {
+      // Оптимизированный запрос к таблице game_backlog
+      const { data, error } = await supabase
+        .from('game_backlog')
+        .select('id, title, status, note, cover_url, badge, created_at')
+        .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      const backlogData = data as BacklogItem[];
-      setItems(backlogData);
-      try {
-        localStorage.setItem(BACKLOG_CACHE_KEY, JSON.stringify(backlogData));
-      } catch (e) {
-        console.warn('Ошибка записи кэша списка игр:', e);
+      if (error) {
+        console.error('Ошибка загрузки списка игр:', error);
+        setErrorMessage(error.message || JSON.stringify(error));
+        return;
       }
+
+      if (!error && data) {
+        setErrorMessage('');
+        const backlogData = data as BacklogItem[];
+        setItems(backlogData);
+        try {
+          localStorage.setItem(BACKLOG_CACHE_KEY, JSON.stringify(backlogData));
+        } catch (e) {
+          console.warn('Ошибка записи кэша списка игр:', e);
+        }
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки списка игр:', err);
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchVaultStats = async () => {
@@ -1091,6 +1105,23 @@ export default function BacklogPage() {
             </div>
           ))}
         </div>
+      ) : errorMessage ? (
+        <div className="my-10 rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center backdrop-blur-md">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/20 text-red-400">
+            <AlertCircle size={26} />
+          </div>
+          <h3 className="font-fantasy text-base font-semibold text-red-300">Ошибка подключения к базе</h3>
+          <p className="mt-2 max-w-xl mx-auto text-xs font-mono text-red-400 break-all leading-relaxed bg-black/40 p-3 rounded-xl border border-red-500/20">
+            {errorMessage}
+          </p>
+          <button
+            type="button"
+            onClick={() => loadBacklog(true)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/20 px-4 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/30 active:scale-95"
+          >
+            Повторить запрос
+          </button>
+        </div>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-28 text-center">
           <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
@@ -1100,7 +1131,7 @@ export default function BacklogPage() {
           <p className="mt-2 text-sm text-white/30">
             {user
               ? 'Добавьте первую игру через форму сверху'
-              : 'Владелец пока не добавил игры в трекер'}
+              : 'Коллекция пустая'}
           </p>
         </div>
       ) : filteredItems.length === 0 ? (
@@ -1142,19 +1173,17 @@ export default function BacklogPage() {
                   {/* Постер 2:3 */}
                   <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#0a0d13]">
                     {resolvedCover ? (
-                      <Image
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
                         src={resolvedCover}
                         alt={item.title}
-                        fill
-                        priority={isPriority}
                         loading={isPriority ? 'eager' : 'lazy'}
                         decoding="async"
-                        className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
+                        className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
                           item.status === 'dropped'
                             ? 'saturate-50 opacity-80 group-hover:saturate-75 group-hover:opacity-100'
                             : ''
                         }`}
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                       />
                     ) : (
                     /* Стильная карточка-заглушка 2:3 с темным фэнтези градиентом */

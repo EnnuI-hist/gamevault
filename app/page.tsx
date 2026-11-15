@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Gamepad2, Search, X } from 'lucide-react';
+import { Plus, Gamepad2, Search, X, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import GameCard from '@/components/GameCard';
@@ -20,6 +20,7 @@ export default function HomePage() {
   const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
   const [gameToEdit, setGameToEdit] = useState<Game | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const supabase = createClient();
 
   const loadGames = async (showLoading = false) => {
@@ -39,7 +40,14 @@ export default function HomePage() {
         `)
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (error) {
+        console.error('Ошибка загрузки игр:', error);
+        setErrorMessage(error.message || JSON.stringify(error));
+        return;
+      }
+
+      if (data) {
+        setErrorMessage('');
         const mapped: Game[] = data.map((g) => ({
           ...g,
           status: g.status || 'completed',
@@ -56,6 +64,7 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error('Ошибка загрузки игр:', err);
+      setErrorMessage(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -157,6 +166,23 @@ export default function HomePage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : errorMessage ? (
+        <div className="my-10 rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center backdrop-blur-md">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/20 text-red-400">
+            <AlertCircle size={26} />
+          </div>
+          <h3 className="text-base font-semibold text-red-300">Ошибка подключения к Supabase</h3>
+          <p className="mt-2 max-w-xl mx-auto text-xs font-mono text-red-400 break-all leading-relaxed bg-black/40 p-3 rounded-xl border border-red-500/20">
+            {errorMessage}
+          </p>
+          <button
+            type="button"
+            onClick={() => loadGames(true)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-red-500/40 bg-red-500/20 px-4 py-2 text-xs font-medium text-red-200 transition hover:bg-red-500/30 active:scale-95"
+          >
+            Повторить запрос
+          </button>
         </div>
       ) : games.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-28 text-center">

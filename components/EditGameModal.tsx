@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { X, Upload, Loader2, Check, AlertCircle, ImageIcon } from 'lucide-react';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { slugify, resolveMediaUrl } from '@/lib/utils';
 import type { Game } from '@/lib/types';
@@ -239,11 +238,11 @@ export default function EditGameModal({
               {coverPreview ? (
                 <div className="flex items-center gap-4 w-full">
                   <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-md">
-                    <Image
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src={resolveMediaUrl(coverPreview)}
                       alt="Превью обложки"
-                      fill
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                     />
                   </div>
                   <div className="flex-1 text-left">

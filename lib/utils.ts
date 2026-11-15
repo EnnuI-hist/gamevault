@@ -21,33 +21,16 @@ export function formatDate(dateStr: string): string {
 }
 
 /**
- * Заменяет домен Supabase (https://supabase.co или *.supabase.co) в ссылке
- * на текущий process.env.NEXT_PUBLIC_SUPABASE_URL (если они отличаются),
- * обеспечивая корректное отображение через настроенный прокси.
+ * Заменяет домен в ссылках на картинки и файлы из Supabase Storage
+ * на прокси-адрес через регулярное выражение без использования new URL().
  */
 export function resolveMediaUrl(url?: string | null): string {
   if (!url) return '';
-  const currentBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
-  if (!currentBase) return url;
-
-  try {
-    const parsed = new URL(url);
-    const currentParsed = new URL(currentBase);
-
-    // Проверяем, является ли домен хостом Supabase (supabase.co или [project].supabase.co)
-    const isSupabaseHost =
-      parsed.hostname === 'supabase.co' ||
-      parsed.hostname.endsWith('.supabase.co');
-
-    if (isSupabaseHost && parsed.origin !== currentParsed.origin) {
-      return `${currentBase}${parsed.pathname}${parsed.search}${parsed.hash}`;
-    }
-  } catch {
-    if (url.includes('supabase.co')) {
-      return url.replace(/https?:\/\/[a-zA-Z0-9.-]*supabase\.co/, currentBase);
-    }
+  if (url.includes('/storage/v1/object/public/')) {
+    const rawEnv = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/+$/, '');
+    const proxyBase = rawEnv && !rawEnv.includes('supabase.co') ? rawEnv : 'https://workers.dev';
+    return url.replace(/^https?:\/\/[^/]+/, proxyBase);
   }
-
   return url;
 }
 
