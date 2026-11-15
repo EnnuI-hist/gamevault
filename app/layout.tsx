@@ -8,6 +8,11 @@ const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 export const metadata: Metadata = {
   title: 'GameVault — Архив игровых скриншотов',
   description: 'Личный облачный архив для хранения игровых скриншотов в высоком качестве',
+  other: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  },
 };
 
 export default function RootLayout({
@@ -17,6 +22,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className="dark">
+      <head>
+        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
+      </head>
       <body className={`${inter.className} min-h-screen bg-[#0a0c10] text-white antialiased`}>
         <Header />
         <main>{children}</main>

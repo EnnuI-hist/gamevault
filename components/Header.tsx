@@ -20,7 +20,7 @@ export default function Header() {
       <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0a0c10]/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:px-6">
           {/* Логотип */}
-          <Link href="/" className="flex items-center gap-2 group shrink-0">
+          <Link href="/" prefetch={false} className="flex items-center gap-2 group shrink-0">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 group-hover:bg-indigo-500 transition-colors">
               <Gamepad2 size={18} className="text-white" />
             </div>
@@ -33,6 +33,7 @@ export default function Header() {
           <nav className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
             <Link
               href="/"
+              prefetch={false}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
                 isShowcase
                   ? 'bg-indigo-600 text-white shadow-sm'
@@ -45,6 +46,7 @@ export default function Header() {
 
             <Link
               href="/list"
+              prefetch={false}
               className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
                 isList
                   ? 'bg-indigo-600 text-white shadow-sm'

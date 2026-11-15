@@ -121,6 +121,21 @@ export default function BacklogPage() {
 
   useEffect(() => {
     loadBacklog();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadBacklog();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', loadBacklog);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', loadBacklog);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Вставка обложки из буфера по Ctrl+V при открытой форме или модалке
