@@ -3,21 +3,18 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Image as ImageIcon, Trash2 } from 'lucide-react';
-import StatusBadge from './StatusBadge';
-import type { Game, GameStatus } from '@/lib/types';
+import type { Game } from '@/lib/types';
 
 interface GameCardProps {
   game: Game;
   isOwner?: boolean;
   onDelete?: (game: Game) => void;
-  onStatusChange?: (gameId: string, newStatus: GameStatus) => void;
 }
 
 export default function GameCard({
   game,
   isOwner,
   onDelete,
-  onStatusChange,
 }: GameCardProps) {
   return (
     <Link href={`/game?slug=${encodeURIComponent(game.slug)}`} className="group block">
@@ -40,16 +37,6 @@ export default function GameCard({
 
           {/* Оверлей затемнения снизу при наведении */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
-          {/* Статус игры (слева сверху) с поддержкой быстрого переключения в 1 клик для владельца */}
-          <div className="absolute left-2 top-2 z-20">
-            <StatusBadge
-              status={game.status || 'completed'}
-              isOwner={isOwner}
-              onStatusChange={(newStatus) => onStatusChange?.(game.id, newStatus)}
-              size="sm"
-            />
-          </div>
 
           {/* Кнопка удаления для владельца (справа сверху) */}
           {isOwner && onDelete && (

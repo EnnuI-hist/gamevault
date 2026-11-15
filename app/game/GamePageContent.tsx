@@ -11,9 +11,8 @@ import UploadZone from '@/components/UploadZone';
 import VideoUpload from '@/components/VideoUpload';
 import DownloadZipButton from '@/components/DownloadZipButton';
 import DeleteGameModal from '@/components/DeleteGameModal';
-import StatusBadge from '@/components/StatusBadge';
 import GameSavesSection from '@/components/GameSavesSection';
-import type { Game, Screenshot, GameStatus } from '@/lib/types';
+import type { Game, Screenshot } from '@/lib/types';
 
 const PAGE_SIZE = 30;
 
@@ -61,10 +60,7 @@ export default function GamePageContent() {
         return;
       }
 
-      setGame({
-        ...gameData,
-        status: (gameData.status as GameStatus) || 'completed',
-      });
+      setGame(gameData);
 
       // 2. Загружаем скриншоты
       const { data: shotsData } = await supabase
@@ -94,12 +90,6 @@ export default function GamePageContent() {
 
     loadGameData();
   }, [slug, refreshKey, supabase]);
-
-  const handleStatusChange = async (newStatus: GameStatus) => {
-    if (!game) return;
-    setGame((prev) => (prev ? { ...prev, status: newStatus } : null));
-    await supabase.from('games').update({ status: newStatus }).eq('id', game.id);
-  };
 
   if (loading) {
     return (
@@ -169,15 +159,7 @@ export default function GamePageContent() {
                 </div>
               )}
               <div>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  <h1 className="text-3xl font-bold text-white">{game.title}</h1>
-                  <StatusBadge
-                    status={game.status || 'completed'}
-                    isOwner={!!user}
-                    onStatusChange={handleStatusChange}
-                    size="md"
-                  />
-                </div>
+                <h1 className="text-3xl font-bold text-white">{game.title}</h1>
                 <p className="mt-1 text-sm text-white/40">
                   {screenshots.length}{' '}
                   {pluralScreenshots(screenshots.length)}

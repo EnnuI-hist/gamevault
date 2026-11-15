@@ -61,8 +61,12 @@ CREATE TABLE IF NOT EXISTS public.game_backlog (
   title      text NOT NULL,
   status     text NOT NULL DEFAULT 'planned' CHECK (status IN ('completed', 'playing', 'planned', 'dropped')),
   note       text DEFAULT '',
+  cover_url  text,
   created_at timestamptz DEFAULT now() NOT NULL
 );
+
+-- Миграция на добавление обложки в game_backlog
+ALTER TABLE public.game_backlog ADD COLUMN IF NOT EXISTS cover_url text;
 
 CREATE INDEX IF NOT EXISTS game_backlog_status_idx ON public.game_backlog(status);
 CREATE INDEX IF NOT EXISTS game_backlog_created_at_idx ON public.game_backlog(created_at DESC);
