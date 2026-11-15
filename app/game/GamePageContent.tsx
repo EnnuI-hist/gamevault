@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, Gamepad2, Trash2, Images, HardDrive, Pencil } from 
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { resolveMediaUrl } from '@/lib/utils';
 import ScreenshotGrid from '@/components/ScreenshotGrid';
 import UploadZone from '@/components/UploadZone';
 import VideoUpload from '@/components/VideoUpload';
@@ -131,7 +132,7 @@ export default function GamePageContent() {
           <div className="absolute inset-0 z-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={game.cover_url}
+              src={resolveMediaUrl(game.cover_url)}
               alt=""
               className="h-full w-full object-cover opacity-20 blur-2xl scale-110"
             />
@@ -154,7 +155,7 @@ export default function GamePageContent() {
                 <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg shadow-xl">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={game.cover_url}
+                    src={resolveMediaUrl(game.cover_url)}
                     alt={game.title}
                     className="h-full w-full object-cover"
                   />

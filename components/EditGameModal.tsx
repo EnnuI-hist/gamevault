@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Upload, Loader2, Check, AlertCircle, ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import { slugify } from '@/lib/utils';
+import { slugify, resolveMediaUrl } from '@/lib/utils';
 import type { Game } from '@/lib/types';
 
 interface EditGameModalProps {
@@ -240,7 +240,7 @@ export default function EditGameModal({
                 <div className="flex items-center gap-4 w-full">
                   <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-md">
                     <Image
-                      src={coverPreview}
+                      src={resolveMediaUrl(coverPreview)}
                       alt="Превью обложки"
                       fill
                       className="object-cover"

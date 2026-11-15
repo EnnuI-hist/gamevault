@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Download, Loader2, Check, Archive, AlertCircle } from 'lucide-react';
 import JSZip from 'jszip';
 import { createClient } from '@/lib/supabase/client';
-import { slugify } from '@/lib/utils';
+import { slugify, resolveMediaUrl } from '@/lib/utils';
 import type { Game } from '@/lib/types';
 
 interface DownloadZipButtonProps {
@@ -56,7 +56,7 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
         await Promise.all(
           batch.map(async (shot, bIdx) => {
             const index = i + bIdx + 1;
-            const resp = await fetch(shot.public_url);
+            const resp = await fetch(resolveMediaUrl(shot.public_url));
             if (!resp.ok) {
               throw new Error(`Ошибка загрузки изображения: ${resp.status}`);
             }

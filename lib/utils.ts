@@ -20,8 +20,40 @@ export function formatDate(dateStr: string): string {
   });
 }
 
+/**
+ * Заменяет домен Supabase (https://supabase.co или *.supabase.co) в ссылке
+ * на текущий process.env.NEXT_PUBLIC_SUPABASE_URL (если они отличаются),
+ * обеспечивая корректное отображение через настроенный прокси.
+ */
+export function resolveMediaUrl(url?: string | null): string {
+  if (!url) return '';
+  const currentBase = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
+  if (!currentBase) return url;
+
+  try {
+    const parsed = new URL(url);
+    const currentParsed = new URL(currentBase);
+
+    // Проверяем, является ли домен хостом Supabase (supabase.co или [project].supabase.co)
+    const isSupabaseHost =
+      parsed.hostname === 'supabase.co' ||
+      parsed.hostname.endsWith('.supabase.co');
+
+    if (isSupabaseHost && parsed.origin !== currentParsed.origin) {
+      return `${currentBase}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    if (url.includes('supabase.co')) {
+      return url.replace(/https?:\/\/[a-zA-Z0-9.-]*supabase\.co/, currentBase);
+    }
+  }
+
+  return url;
+}
+
 export async function downloadFile(url: string, filename: string): Promise<void> {
-  const response = await fetch(url);
+  const resolvedUrl = resolveMediaUrl(url);
+  const response = await fetch(resolvedUrl);
   if (!response.ok) {
     throw new Error(`Не удалось скачать файл: ${response.statusText}`);
   }

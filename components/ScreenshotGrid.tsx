@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { Loader2, Trash2, Download, Play } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useInfiniteScroll } from '@/lib/hooks/useInfiniteScroll';
-import { downloadFile } from '@/lib/utils';
+import { downloadFile, resolveMediaUrl } from '@/lib/utils';
 import Lightbox from './Lightbox';
 import { cloudinaryThumb } from './VideoUpload';
 import type { Screenshot } from '@/lib/types';
@@ -77,7 +77,7 @@ export default function ScreenshotGrid({
       const filename = shot.caption
         ? `${shot.caption.slice(0, 30).trim().replace(/[\\/:*?"<>|]/g, '_')}.${ext}`
         : shot.storage_path.split('/').pop() || `file-${shot.id.slice(0, 8)}.${ext}`;
-      await downloadFile(shot.public_url, filename);
+      await downloadFile(resolveMediaUrl(shot.public_url), filename);
     } catch (err) {
       console.error('Ошибка быстрого скачивания:', err);
       alert('Не удалось скачать файл');
@@ -105,7 +105,8 @@ export default function ScreenshotGrid({
       <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 space-y-3">
         {screenshots.map((shot, idx) => {
           const isVideo = shot.media_type === 'video';
-          const thumbSrc = isVideo ? cloudinaryThumb(shot.public_url) : shot.public_url;
+          const resolvedUrl = resolveMediaUrl(shot.public_url);
+          const thumbSrc = isVideo ? cloudinaryThumb(shot.public_url) : resolvedUrl;
 
           return (
             <div
@@ -118,6 +119,7 @@ export default function ScreenshotGrid({
                 src={thumbSrc}
                 alt={shot.caption || `Медиа ${idx + 1}`}
                 loading="lazy"
+                decoding="async"
                 className="w-full h-auto block transition-transform duration-300 group-hover:scale-[1.02]"
               />
 

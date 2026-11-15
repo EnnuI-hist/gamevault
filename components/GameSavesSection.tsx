@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { formatFileSize, formatDate, downloadFile } from '@/lib/utils';
+import { formatFileSize, formatDate, downloadFile, resolveMediaUrl } from '@/lib/utils';
 import type { GameSave } from '@/lib/types';
 
 interface GameSavesSectionProps {
@@ -151,7 +151,7 @@ export default function GameSavesSection({
     if (downloadingId === save.id) return;
     try {
       setDownloadingId(save.id);
-      await downloadFile(save.file_url, save.file_name);
+      await downloadFile(resolveMediaUrl(save.file_url), save.file_name);
     } catch (err) {
       console.error('Ошибка скачивания файла:', err);
       alert('Не удалось скачать файл сохранения');

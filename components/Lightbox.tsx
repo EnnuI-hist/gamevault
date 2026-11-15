@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, Edit2, Check, Trash2, Loader2 } from 'lucide-react';
-import { downloadFile } from '@/lib/utils';
+import { downloadFile, resolveMediaUrl } from '@/lib/utils';
 import type { Screenshot } from '@/lib/types';
 
 interface LightboxProps {
@@ -29,6 +29,7 @@ export default function Lightbox({
 
   const current = screenshots[index];
   const isVideo = current?.media_type === 'video';
+  const resolvedUrl = resolveMediaUrl(current?.public_url);
 
   const prev = useCallback(() => setIndex((i) => (i > 0 ? i - 1 : screenshots.length - 1)), [screenshots.length]);
   const next = useCallback(() => setIndex((i) => (i < screenshots.length - 1 ? i + 1 : 0)), [screenshots.length]);
@@ -70,7 +71,7 @@ export default function Lightbox({
       const filename = current.caption
         ? `${current.caption.slice(0, 30).trim().replace(/[\\/:*?"<>|]/g, '_')}.${ext}`
         : current.storage_path.split('/').pop() || `file-${current.id.slice(0, 8)}.${ext}`;
-      await downloadFile(current.public_url, filename);
+      await downloadFile(resolvedUrl, filename);
     } catch (err) {
       console.error('Ошибка скачивания:', err);
       alert('Не удалось скачать файл');
@@ -134,7 +135,7 @@ export default function Lightbox({
           // eslint-disable-next-line jsx-a11y/media-has-caption
           <video
             key={current.id}
-            src={current.public_url}
+            src={resolvedUrl}
             controls
             autoPlay
             playsInline
@@ -143,7 +144,7 @@ export default function Lightbox({
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={current.public_url}
+            src={resolvedUrl}
             alt={current.caption || `Скриншот ${index + 1}`}
             className="max-h-full max-w-full object-contain"
             draggable={false}

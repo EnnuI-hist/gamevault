@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Image as ImageIcon, Trash2, Pencil } from 'lucide-react';
 import TiltCard from './TiltCard';
+import { resolveMediaUrl } from '@/lib/utils';
 import type { Game } from '@/lib/types';
 
 interface GameCardProps {
@@ -24,18 +25,19 @@ export default function GameCard({
   priority,
 }: GameCardProps) {
   const isPriority = priority ?? (index !== undefined && index < 6);
+  const resolvedCoverUrl = resolveMediaUrl(game.cover_url);
 
   return (
     <Link href={`/game?slug=${encodeURIComponent(game.slug)}`} className="group block">
       <TiltCard
-        coverUrl={game.cover_url}
+        coverUrl={resolvedCoverUrl}
         className="border border-white/10 neon-card-glow"
       >
         {/* Постер 2:3 */}
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#0d1119]">
           {game.cover_url ? (
             <Image
-              src={game.cover_url}
+              src={resolvedCoverUrl}
               alt={game.title}
               fill
               priority={isPriority}

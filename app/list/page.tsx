@@ -25,6 +25,7 @@ import {
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { resolveMediaUrl } from '@/lib/utils';
 import StatusBadge, { STATUS_LIST } from '@/components/StatusBadge';
 import TiltCard from '@/components/TiltCard';
 import type { BacklogItem, GameStatus } from '@/lib/types';
@@ -1130,18 +1131,19 @@ export default function BacklogPage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filteredItems.map((item, index) => {
             const isPriority = index < 6;
+            const resolvedCover = resolveMediaUrl(item.cover_url);
             return (
               <div key={item.id} className="group relative">
                 <TiltCard
-                  coverUrl={item.cover_url}
+                  coverUrl={resolvedCover}
                   statusGlowClass={getStatusGlow(item.status)}
                   className="h-full flex flex-col justify-between"
                 >
                   {/* Постер 2:3 */}
                   <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#0a0d13]">
-                    {item.cover_url ? (
+                    {resolvedCover ? (
                       <Image
-                        src={item.cover_url}
+                        src={resolvedCover}
                         alt={item.title}
                         fill
                         priority={isPriority}
@@ -1406,7 +1408,7 @@ export default function BacklogPage() {
                 <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={coverPreview}
+                    src={resolveMediaUrl(coverPreview)}
                     alt="Предпросмотр"
                     className="h-full w-full object-cover"
                     onError={() =>
