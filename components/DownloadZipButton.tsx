@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Loader2, Check, Archive, AlertCircle } from 'lucide-react';
+import { Loader2, Check, Archive, AlertCircle } from 'lucide-react';
 import JSZip from 'jszip';
 import { createClient } from '@/lib/supabase/client';
 import { slugify, resolveMediaUrl } from '@/lib/utils';
@@ -35,9 +35,24 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
 
       if (error) throw error;
 
-      // Видео (Cloudinary) не включаем в ZIP — только изображения
+      // Скачиваем только скриншоты (media_type !== 'video' и игнорируем любые внешние видеоролики)
       const screenshots = (allMedia ?? []).filter(
-        (s: { media_type?: string }) => s.media_type !== 'video'
+        (s: { media_type?: string; public_url?: string; storage_path?: string }) => {
+          if (s.media_type === 'video') return false;
+          if (s.storage_path === 'video-link') return false;
+          const url = (s.public_url || '').toLowerCase();
+          if (
+            url.includes('youtube.com') ||
+            url.includes('youtu.be') ||
+            url.includes('rutube.ru') ||
+            url.includes('drive.google.com') ||
+            url.includes('docs.google.com') ||
+            /\.(mp4|webm|mov|mkv|avi)(\?.*)?$/i.test(url)
+          ) {
+            return false;
+          }
+          return true;
+        }
       );
 
       if (screenshots.length === 0) {

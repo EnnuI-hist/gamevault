@@ -8,6 +8,7 @@ export interface Game {
   status: GameStatus;
   created_at: string;
   screenshot_count?: number;
+  video_count?: number;
 }
 
 export interface Screenshot {

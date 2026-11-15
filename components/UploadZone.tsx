@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { UploadCloud, AlertCircle } from 'lucide-react';
+import { UploadCloud, AlertCircle, X, Film } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import ProgressBar from './ProgressBar';
 import { formatFileSize } from '@/lib/utils';
@@ -12,6 +12,7 @@ interface UploadZoneProps {
   gameId: string;
   gameSlug: string;
   onUploaded: () => void;
+  onSwitchToVideos?: () => void;
 }
 
 interface CompressResult {
@@ -61,10 +62,11 @@ async function compressToWebP(file: File): Promise<CompressResult> {
   });
 }
 
-export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneProps) {
+export default function UploadZone({ gameId, gameSlug, onUploaded, onSwitchToVideos }: UploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploads, setUploads] = useState<(UploadProgress & { savings?: string })[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [videoWarning, setVideoWarning] = useState<string | null>(null);
   const supabase = createClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const isUploadingRef = useRef(false);
@@ -86,8 +88,39 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
   const handleFiles = useCallback(async (files: File[]) => {
     if (!files.length || isUploadingRef.current) return;
 
+    // Проверка на видеофайлы и лимит веса (> 99 МБ)
+    const isVideoFile = (f: File) =>
+      f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi|flv|wmv)$/i.test(f.name);
+
+    const videoFile = files.find(isVideoFile);
+    if (videoFile) {
+      if (videoFile.size > 99 * 1024 * 1024) {
+        const sizeStr =
+          videoFile.size >= 1024 * 1024 * 1024
+            ? `${(videoFile.size / (1024 * 1024 * 1024)).toFixed(1)} ГБ`
+            : `${Math.round(videoFile.size / (1024 * 1024))} МБ`;
+        setVideoWarning(
+          `Файл весит ${sizeStr}. Прямая загрузка поддерживает файлы до 100 МБ — для тяжёлых откатов перейдите во вкладку «Видео» и добавьте по ссылке`
+        );
+        return;
+      }
+    }
+
     const imageFiles = files.filter((f) => f.type.startsWith('image/'));
-    if (!imageFiles.length) return;
+    if (!imageFiles.length) {
+      if (videoFile) {
+        const sizeStr =
+          videoFile.size >= 1024 * 1024 * 1024
+            ? `${(videoFile.size / (1024 * 1024 * 1024)).toFixed(1)} ГБ`
+            : `${Math.round(videoFile.size / (1024 * 1024))} МБ`;
+        setVideoWarning(
+          `Файл весит ${sizeStr}. Прямая загрузка поддерживает файлы до 100 МБ — для тяжёлых откатов перейдите во вкладку «Видео» и добавьте по ссылке`
+        );
+      }
+      return;
+    }
+
+    setVideoWarning(null);
 
     isUploadingRef.current = true;
     setIsUploading(true);
@@ -197,7 +230,7 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
           ref={inputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept="image/*,video/*"
           className="hidden"
           onChange={(e) => e.target.files && handleFiles(Array.from(e.target.files))}
         />
@@ -211,6 +244,40 @@ export default function UploadZone({ gameId, gameSlug, onUploaded }: UploadZoneP
           </p>
         </div>
       </div>
+
+      {/* Предупреждение о видео > 99 МБ */}
+      {videoWarning && (
+        <div className="mt-3 flex items-start justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-amber-200 backdrop-blur-md shadow-lg shadow-amber-500/5">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle size={18} className="shrink-0 text-amber-400 mt-0.5" />
+            <div>
+              <p className="text-xs sm:text-sm font-medium leading-relaxed">
+                {videoWarning}
+              </p>
+              {onSwitchToVideos && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    playClick();
+                    onSwitchToVideos();
+                  }}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100 hover:bg-amber-500/30 transition-all active:scale-95"
+                >
+                  <Film size={13} />
+                  <span>Перейти во вкладку «Видео»</span>
+                </button>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setVideoWarning(null)}
+            className="rounded-lg p-1 text-amber-400/60 hover:bg-amber-500/20 hover:text-amber-200 transition-colors"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {/* Прогресс загрузки */}
       {uploads.length > 0 && (

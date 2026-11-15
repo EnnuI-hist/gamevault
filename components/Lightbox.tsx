@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, Download, Edit2, Check, Trash2, Loader2 } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { X, ChevronLeft, ChevronRight, Download, Edit2, Check, Trash2, Loader2, ExternalLink } from 'lucide-react';
 import { downloadFile, resolveMediaUrl } from '@/lib/utils';
+import { parseVideoUrl } from '@/lib/videoUtils';
 import { playSwipe, playClick, playHover } from '@/lib/sounds';
 import type { Screenshot } from '@/lib/types';
 
@@ -31,6 +32,17 @@ export default function Lightbox({
   const current = screenshots[index];
   const isVideo = current?.media_type === 'video';
   const resolvedUrl = resolveMediaUrl(current?.public_url);
+
+  const parsedVideo = useMemo(() => {
+    if (!isVideo || !current?.public_url) return null;
+    return parseVideoUrl(current.public_url);
+  }, [isVideo, current?.public_url]);
+
+  const isIframeVideo =
+    parsedVideo &&
+    (parsedVideo.provider === 'youtube' ||
+      parsedVideo.provider === 'drive' ||
+      parsedVideo.provider === 'rutube');
 
   const prev = useCallback(() => {
     playSwipe();
@@ -106,20 +118,34 @@ export default function Lightbox({
           )}
         </span>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDownload}
-            onMouseEnter={playHover}
-            disabled={downloading}
-            title={isVideo ? 'Скачать видео' : 'Скачать файл на диск в максимальном качестве'}
-            className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-white/80 transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.3)] active:scale-95 disabled:opacity-50"
-          >
-            {downloading ? (
-              <Loader2 size={13} className="animate-spin text-[var(--neon-text)]" />
-            ) : (
-              <Download size={13} />
-            )}
-            <span>{downloading ? 'Загрузка...' : isVideo ? 'Скачать видео' : 'Скачать оригинал'}</span>
-          </button>
+          {isIframeVideo ? (
+            <a
+              href={current.public_url}
+              target="_blank"
+              rel="noreferrer"
+              onMouseEnter={playHover}
+              title={`Открыть оригинал (${parsedVideo?.platformName})`}
+              className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-white/80 transition-all duration-200 hover:border-violet-500/50 hover:bg-violet-500/20 hover:text-white hover:shadow-[0_0_12px_rgba(139,92,246,0.3)] active:scale-95"
+            >
+              <ExternalLink size={13} />
+              <span>Открыть в новой вкладке</span>
+            </a>
+          ) : (
+            <button
+              onClick={handleDownload}
+              onMouseEnter={playHover}
+              disabled={downloading}
+              title={isVideo ? 'Скачать видео' : 'Скачать файл на диск в максимальном качестве'}
+              className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-[#0d111a]/80 backdrop-blur-md px-3.5 py-1.5 text-xs font-medium text-white/80 transition-all duration-200 hover:border-[var(--neon-border)] hover:bg-[var(--neon-badge-bg)] hover:text-[var(--neon-text)] hover:shadow-[0_0_12px_rgba(var(--neon-primary-rgb),0.3)] active:scale-95 disabled:opacity-50"
+            >
+              {downloading ? (
+                <Loader2 size={13} className="animate-spin text-[var(--neon-text)]" />
+              ) : (
+                <Download size={13} />
+              )}
+              <span>{downloading ? 'Загрузка...' : isVideo ? 'Скачать видео' : 'Скачать оригинал'}</span>
+            </button>
+          )}
           {isOwner && (
             <button
               onClick={() => {
@@ -148,16 +174,29 @@ export default function Lightbox({
       {/* Медиаконтент */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden px-12">
         {isVideo ? (
-          // HTML5 видеоплеер для Cloudinary-видео
-          // eslint-disable-next-line jsx-a11y/media-has-caption
-          <video
-            key={current.id}
-            src={resolvedUrl}
-            controls
-            autoPlay
-            playsInline
-            className="max-h-full max-w-full rounded-lg"
-          />
+          isIframeVideo ? (
+            <div className="w-full max-w-5xl aspect-video max-h-[80vh] flex items-center justify-center">
+              <iframe
+                key={current.id}
+                src={parsedVideo.embedUrl}
+                title={current.caption || `${parsedVideo.platformName} видео`}
+                className="w-full h-full rounded-2xl shadow-2xl border border-white/10"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            // HTML5 видеоплеер для прямых ссылок
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              key={current.id}
+              src={resolvedUrl}
+              controls
+              autoPlay
+              playsInline
+              className="max-h-[85vh] max-w-full rounded-2xl shadow-2xl border border-white/10"
+            />
+          )
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img

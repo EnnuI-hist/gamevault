@@ -27,34 +27,42 @@ export default function HomePage() {
   const loadGames = async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      // Оптимизированный запрос: выбираем только необходимые поля и count скриншотов
-      const { data, error } = await supabase
-        .from('games')
-        .select(`
-          id,
-          title,
-          slug,
-          cover_url,
-          status,
-          created_at,
-          screenshot_count:screenshots(count)
-        `)
-        .order('created_at', { ascending: false });
+      // Запрашиваем игры и распределение медиафайлов (фото и видео)
+      const [gamesRes, shotsRes] = await Promise.all([
+        supabase
+          .from('games')
+          .select('id, title, slug, cover_url, status, created_at')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('screenshots')
+          .select('game_id, media_type'),
+      ]);
 
-      if (error) {
-        console.error('Ошибка загрузки игр:', error);
-        setErrorMessage(error.message || JSON.stringify(error));
+      if (gamesRes.error) {
+        console.error('Ошибка загрузки игр:', gamesRes.error);
+        setErrorMessage(gamesRes.error.message || JSON.stringify(gamesRes.error));
         return;
       }
 
-      if (data) {
+      if (gamesRes.data) {
         setErrorMessage('');
-        const mapped: Game[] = data.map((g) => ({
+        const counts: Record<string, { images: number; videos: number }> = {};
+        if (shotsRes.data) {
+          for (const s of shotsRes.data) {
+            if (!counts[s.game_id]) counts[s.game_id] = { images: 0, videos: 0 };
+            if (s.media_type === 'video') {
+              counts[s.game_id].videos++;
+            } else {
+              counts[s.game_id].images++;
+            }
+          }
+        }
+
+        const mapped: Game[] = gamesRes.data.map((g) => ({
           ...g,
           status: g.status || 'completed',
-          screenshot_count: Array.isArray(g.screenshot_count)
-            ? (g.screenshot_count[0] as { count: number })?.count ?? 0
-            : 0,
+          screenshot_count: counts[g.id]?.images ?? 0,
+          video_count: counts[g.id]?.videos ?? 0,
         }));
         setGames(mapped);
         try {

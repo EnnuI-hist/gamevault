@@ -39,6 +39,7 @@ export default function ScreenshotGrid({
       .from('screenshots')
       .select('*')
       .eq('game_id', gameId)
+      .neq('media_type', 'video')
       .order('created_at', { ascending: false })
       .range(screenshots.length, screenshots.length + PAGE_SIZE - 1);
 

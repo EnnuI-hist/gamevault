@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Image as ImageIcon, Trash2, Pencil } from 'lucide-react';
+import { Image as ImageIcon, Video, Trash2, Pencil } from 'lucide-react';
 import TiltCard from './TiltCard';
 import { resolveMediaUrl } from '@/lib/utils';
 import { playClick, playHover } from '@/lib/sounds';
@@ -58,6 +58,22 @@ export default function GameCard({
             </div>
           )}
 
+          {/* Бейджи счётчиков фото и видео на обложке */}
+          <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap items-center gap-1.5 pointer-events-none">
+            {(game.screenshot_count ?? 0) > 0 && (
+              <div className="flex items-center gap-1 rounded-lg border border-white/15 bg-black/65 backdrop-blur-md px-2 py-0.5 text-[11px] font-mono font-medium text-white/90 shadow-md">
+                <ImageIcon size={11} className="text-white/70" />
+                <span>{game.screenshot_count}</span>
+              </div>
+            )}
+            {(game.video_count ?? 0) > 0 && (
+              <div className="flex items-center gap-1 rounded-lg border border-violet-500/40 bg-black/65 backdrop-blur-md px-2 py-0.5 text-[11px] font-mono font-medium text-violet-300 shadow-md shadow-violet-500/20">
+                <Video size={11} className="text-violet-400" />
+                <span>{game.video_count}</span>
+              </div>
+            )}
+          </div>
+
           {/* Оверлей затемнения снизу при наведении */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
@@ -106,10 +122,21 @@ export default function GameCard({
           <h3 className="truncate font-fantasy text-sm font-bold text-white group-hover:text-[var(--neon-text)] transition-colors tracking-wide">
             {game.title}
           </h3>
-          <p className="mt-0.5 font-mono text-[11px] text-white/40">
-            {game.screenshot_count ?? 0}{' '}
-            {pluralScreenshots(game.screenshot_count ?? 0)}
-          </p>
+          <div className="mt-1 flex items-center flex-wrap gap-x-2 gap-y-0.5 font-mono text-[11px] text-white/40">
+            <span>
+              {game.screenshot_count ?? 0}{' '}
+              {pluralScreenshots(game.screenshot_count ?? 0)}
+            </span>
+            {(game.video_count ?? 0) > 0 && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-violet-400/90 font-medium">
+                  <Video size={11} className="text-violet-400" />
+                  <span>{game.video_count} {pluralVideos(game.video_count!)}</span>
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </TiltCard>
     </Link>
@@ -120,4 +147,10 @@ function pluralScreenshots(n: number): string {
   if (n % 10 === 1 && n % 100 !== 11) return 'скриншот';
   if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'скриншота';
   return 'скриншотов';
+}
+
+function pluralVideos(n: number): string {
+  if (n % 10 === 1 && n % 100 !== 11) return 'видео';
+  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'видео';
+  return 'видео';
 }

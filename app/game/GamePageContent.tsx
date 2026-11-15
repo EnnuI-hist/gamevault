@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, Gamepad2, Trash2, Images, HardDrive, Pencil } from 'lucide-react';
+import { ArrowLeft, Loader2, Gamepad2, Trash2, Images, HardDrive, Pencil, Film } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { resolveMediaUrl } from '@/lib/utils';
 import ScreenshotGrid from '@/components/ScreenshotGrid';
 import UploadZone from '@/components/UploadZone';
-import VideoUpload from '@/components/VideoUpload';
+import VideoSection from '@/components/VideoSection';
 import DownloadZipButton from '@/components/DownloadZipButton';
 import DeleteGameModal from '@/components/DeleteGameModal';
 import EditGameModal from '@/components/EditGameModal';
@@ -27,6 +27,9 @@ export default function GamePageContent() {
 
   const [game, setGame] = useState<Game | null>(null);
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
+  const [screenshotsCount, setScreenshotsCount] = useState(0);
+  const [videos, setVideos] = useState<Screenshot[]>([]);
+  const [videosCount, setVideosCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -34,8 +37,8 @@ export default function GamePageContent() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Вкладки: Галерея или Сохранения (Saves)
-  const [activeTab, setActiveTab] = useState<'gallery' | 'saves'>('gallery');
+  // Вкладки: Галерея, Видео или Сохранения (Saves)
+  const [activeTab, setActiveTab] = useState<'gallery' | 'videos' | 'saves'>('gallery');
   const [savesCount, setSavesCount] = useState(0);
 
   const supabase = createClient();
@@ -66,29 +69,46 @@ export default function GamePageContent() {
 
       setGame(gameData);
 
-      // 2. Загружаем скриншоты
-      const { data: shotsData } = await supabase
-        .from('screenshots')
-        .select('*')
-        .eq('game_id', gameData.id)
-        .order('created_at', { ascending: false })
-        .range(0, PAGE_SIZE - 1);
+      // 2. Параллельно загружаем скриншоты (фото), видео и сохранения
+      const [shotsDataRes, shotsCountRes, videosDataRes, videosCountRes, savesCountRes] =
+        await Promise.all([
+          supabase
+            .from('screenshots')
+            .select('*')
+            .eq('game_id', gameData.id)
+            .neq('media_type', 'video')
+            .order('created_at', { ascending: false })
+            .range(0, PAGE_SIZE - 1),
+          supabase
+            .from('screenshots')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', gameData.id)
+            .neq('media_type', 'video'),
+          supabase
+            .from('screenshots')
+            .select('*')
+            .eq('game_id', gameData.id)
+            .eq('media_type', 'video')
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('screenshots')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', gameData.id)
+            .eq('media_type', 'video'),
+          supabase
+            .from('game_saves')
+            .select('*', { count: 'exact', head: true })
+            .eq('game_id', gameData.id),
+        ]);
 
-      const { count } = await supabase
-        .from('screenshots')
-        .select('*', { count: 'exact', head: true })
-        .eq('game_id', gameData.id);
+      setScreenshots((shotsDataRes.data ?? []) as Screenshot[]);
+      setScreenshotsCount(shotsCountRes.count ?? (shotsDataRes.data?.length || 0));
+      setHasMore((shotsCountRes.count ?? 0) > PAGE_SIZE);
 
-      setScreenshots((shotsData ?? []) as Screenshot[]);
-      setHasMore((count ?? 0) > PAGE_SIZE);
+      setVideos((videosDataRes.data ?? []) as Screenshot[]);
+      setVideosCount(videosCountRes.count ?? (videosDataRes.data?.length || 0));
 
-      // 3. Загружаем количество сохранений
-      const { count: savesTotal } = await supabase
-        .from('game_saves')
-        .select('*', { count: 'exact', head: true })
-        .eq('game_id', gameData.id);
-
-      setSavesCount(savesTotal ?? 0);
+      setSavesCount(savesCountRes.count ?? 0);
       setLoading(false);
     };
 
@@ -167,11 +187,10 @@ export default function GamePageContent() {
               <div>
                 <h1 className="text-3xl font-bold text-white">{game.title}</h1>
                 <p className="mt-1 text-sm text-white/40">
-                  {screenshots.length}{' '}
-                  {pluralScreenshots(screenshots.length)}
+                  {screenshotsCount} {pluralScreenshots(screenshotsCount)}
+                  {videosCount > 0 && ` • ${videosCount} ${pluralVideos(videosCount)}`}
                   {' • '}
-                  {savesCount}{' '}
-                  {pluralSaves(savesCount)}
+                  {savesCount} {pluralSaves(savesCount)}
                 </p>
               </div>
             </div>
@@ -215,7 +234,7 @@ export default function GamePageContent() {
 
       {/* Основной контент с вкладками */}
       <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
-        {/* Вкладки переключения: Галерея vs Сохранения (Стеклянная сегментированная капсула) */}
+        {/* Вкладки переключения: Галерея vs Видео vs Сохранения (Стеклянная сегментированная капсула) */}
         <div className="mb-6 flex items-center border-b border-white/10 pb-4">
           <div className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 bg-[#0d111a]/80 p-1.5 backdrop-blur-md shadow-inner">
             <button
@@ -240,7 +259,33 @@ export default function GamePageContent() {
                     : 'bg-white/5 text-white/50'
                 }`}
               >
-                {screenshots.length}
+                {screenshotsCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                playClick();
+                setActiveTab('videos');
+              }}
+              onMouseEnter={playHover}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-95 ${
+                activeTab === 'videos'
+                  ? 'border border-[var(--neon-badge-border)] bg-[var(--neon-badge-bg)] text-[var(--neon-text)] shadow-[0_0_14px_rgba(var(--neon-primary-rgb),0.35)] font-semibold'
+                  : 'border border-transparent bg-transparent text-white/60 hover:bg-white/5 hover:border-white/10 hover:text-white'
+              }`}
+            >
+              <Film size={16} className={activeTab === 'videos' ? 'text-[var(--neon-text)] drop-shadow-[0_0_6px_rgba(var(--neon-primary-rgb),0.7)]' : ''} />
+              <span>Видео</span>
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-xs font-mono font-semibold ${
+                  activeTab === 'videos'
+                    ? 'bg-black/30 text-[var(--neon-text)] border border-[var(--neon-badge-border)]'
+                    : 'bg-white/5 text-white/50'
+                }`}
+              >
+                {videosCount}
               </span>
             </button>
 
@@ -276,17 +321,12 @@ export default function GamePageContent() {
         {activeTab === 'gallery' && (
           <div>
             {user && (
-              <>
-                <UploadZone
-                  gameId={game.id}
-                  gameSlug={game.slug}
-                  onUploaded={() => setRefreshKey((k) => k + 1)}
-                />
-                <VideoUpload
-                  gameId={game.id}
-                  onUploaded={() => setRefreshKey((k) => k + 1)}
-                />
-              </>
+              <UploadZone
+                gameId={game.id}
+                gameSlug={game.slug}
+                onUploaded={() => setRefreshKey((k) => k + 1)}
+                onSwitchToVideos={() => setActiveTab('videos')}
+              />
             )}
 
             <ScreenshotGrid
@@ -297,6 +337,16 @@ export default function GamePageContent() {
               initialHasMore={hasMore}
             />
           </div>
+        )}
+
+        {/* Содержимое вкладки Видео */}
+        {activeTab === 'videos' && (
+          <VideoSection
+            gameId={game.id}
+            isOwner={!!user}
+            videos={videos}
+            onRefresh={() => setRefreshKey((k) => k + 1)}
+          />
         )}
 
         {/* Содержимое вкладки Сохранения (Saves) */}
@@ -347,4 +397,10 @@ function pluralSaves(n: number): string {
   if (n % 10 === 1 && n % 100 !== 11) return 'сохранение';
   if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'сохранения';
   return 'сохранений';
+}
+
+function pluralVideos(n: number): string {
+  if (n % 10 === 1 && n % 100 !== 11) return 'видео';
+  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'видео';
+  return 'видео';
 }
