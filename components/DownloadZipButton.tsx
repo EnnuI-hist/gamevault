@@ -26,15 +26,21 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
       setPercent(5);
 
       // Получаем все скриншоты игры
-      const { data: screenshots, error } = await supabase
+      const { data: allMedia, error } = await supabase
         .from('screenshots')
-        .select('id, storage_path, public_url, caption')
+        .select('id, storage_path, public_url, caption, media_type')
         .eq('game_id', game.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      if (!screenshots || screenshots.length === 0) {
-        alert('В этой игре пока нет скриншотов для скачивания');
+
+      // Видео (Cloudinary) не включаем в ZIP — только изображения
+      const screenshots = (allMedia ?? []).filter(
+        (s: { media_type?: string }) => s.media_type !== 'video'
+      );
+
+      if (screenshots.length === 0) {
+        alert('В этой игре пока нет скриншотов для скачивания (видео в ZIP не включаются)');
         setStatus('idle');
         return;
       }
@@ -137,7 +143,7 @@ export default function DownloadZipButton({ game }: DownloadZipButtonProps) {
         {status === 'idle' && <Archive size={16} className="text-indigo-400" />}
 
         <span>
-          {status === 'idle' && 'Скачать все (ZIP)'}
+          {status === 'idle' && 'Скачать фото (ZIP)'}
           {status === 'fetching' && `Скачивание: ${progressText}`}
           {status === 'zipping' && progressText}
           {status === 'done' && 'Архив скачан!'}

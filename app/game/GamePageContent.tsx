@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import ScreenshotGrid from '@/components/ScreenshotGrid';
 import UploadZone from '@/components/UploadZone';
+import VideoUpload from '@/components/VideoUpload';
 import DownloadZipButton from '@/components/DownloadZipButton';
 import DeleteGameModal from '@/components/DeleteGameModal';
 import type { Game, Screenshot } from '@/lib/types';
@@ -175,11 +176,17 @@ export default function GamePageContent() {
       {/* Контент */}
       <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
         {user && (
-          <UploadZone
-            gameId={game.id}
-            gameSlug={game.slug}
-            onUploaded={() => setRefreshKey((k) => k + 1)}
-          />
+          <>
+            <UploadZone
+              gameId={game.id}
+              gameSlug={game.slug}
+              onUploaded={() => setRefreshKey((k) => k + 1)}
+            />
+            <VideoUpload
+              gameId={game.id}
+              onUploaded={() => setRefreshKey((k) => k + 1)}
+            />
+          </>
         )}
 
         <ScreenshotGrid

@@ -28,6 +28,7 @@ export default function Lightbox({
   const [downloading, setDownloading] = useState(false);
 
   const current = screenshots[index];
+  const isVideo = current?.media_type === 'video';
 
   const prev = useCallback(() => setIndex((i) => (i > 0 ? i - 1 : screenshots.length - 1)), [screenshots.length]);
   const next = useCallback(() => setIndex((i) => (i < screenshots.length - 1 ? i + 1 : 0)), [screenshots.length]);
@@ -63,13 +64,15 @@ export default function Lightbox({
     if (downloading || !current) return;
     setDownloading(true);
     try {
-      const ext = current.storage_path.split('.').pop() || 'jpg';
+      const ext = isVideo
+        ? (current.public_url.match(/\.(mp4|webm|mov)/i)?.[1] ?? 'mp4')
+        : (current.storage_path.split('.').pop() || 'webp');
       const filename = current.caption
         ? `${current.caption.slice(0, 30).trim().replace(/[\\/:*?"<>|]/g, '_')}.${ext}`
-        : current.storage_path.split('/').pop() || `screenshot-${current.id.slice(0, 8)}.${ext}`;
+        : current.storage_path.split('/').pop() || `file-${current.id.slice(0, 8)}.${ext}`;
       await downloadFile(current.public_url, filename);
     } catch (err) {
-      console.error('Ошибка скачивания оригинала:', err);
+      console.error('Ошибка скачивания:', err);
       alert('Не удалось скачать файл');
     } finally {
       setDownloading(false);
@@ -87,12 +90,17 @@ export default function Lightbox({
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
         <span className="text-sm text-white/50">
           {index + 1} / {screenshots.length}
+          {isVideo && (
+            <span className="ml-2 rounded-md bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-medium text-violet-300">
+              Видео
+            </span>
+          )}
         </span>
         <div className="flex items-center gap-2">
           <button
             onClick={handleDownload}
             disabled={downloading}
-            title="Скачать файл на диск в максимальном качестве"
+            title={isVideo ? 'Скачать видео' : 'Скачать файл на диск в максимальном качестве'}
             className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
           >
             {downloading ? (
@@ -100,7 +108,7 @@ export default function Lightbox({
             ) : (
               <Download size={13} />
             )}
-            {downloading ? 'Загрузка...' : 'Скачать оригинал'}
+            {downloading ? 'Загрузка...' : isVideo ? 'Скачать видео' : 'Скачать оригинал'}
           </button>
           {isOwner && (
             <button
@@ -119,15 +127,28 @@ export default function Lightbox({
         </div>
       </div>
 
-      {/* Изображение */}
+      {/* Медиаконтент */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden px-12">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={current.public_url}
-          alt={current.caption || `Скриншот ${index + 1}`}
-          className="max-h-full max-w-full object-contain"
-          draggable={false}
-        />
+        {isVideo ? (
+          // HTML5 видеоплеер для Cloudinary-видео
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <video
+            key={current.id}
+            src={current.public_url}
+            controls
+            autoPlay
+            playsInline
+            className="max-h-full max-w-full rounded-lg"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={current.public_url}
+            alt={current.caption || `Скриншот ${index + 1}`}
+            className="max-h-full max-w-full object-contain"
+            draggable={false}
+          />
+        )}
 
         {/* Стрелка назад */}
         <button

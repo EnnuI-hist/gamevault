@@ -29,15 +29,16 @@ export default function DeleteGameModal({
     try {
       const pathsToRemove: string[] = [];
 
-      // 1. Собираем пути всех скриншотов игры из БД
+      // 1. Собираем пути всех скриншотов (только image — Cloudinary видео не удаляем из Storage)
       const { data: screenshots, error: fetchErr } = await supabase
         .from('screenshots')
-        .select('storage_path')
+        .select('storage_path, media_type')
         .eq('game_id', game.id);
 
       if (!fetchErr && screenshots) {
         for (const s of screenshots) {
-          if (s.storage_path) pathsToRemove.push(s.storage_path);
+          // Пропускаем видео (Cloudinary public_id — не путь в Supabase Storage)
+          if (s.storage_path && s.media_type !== 'video') pathsToRemove.push(s.storage_path);
         }
       }
 

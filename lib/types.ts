@@ -17,6 +17,7 @@ export interface Screenshot {
   height: number | null;
   size_bytes: number | null;
   created_at: string;
+  media_type: 'image' | 'video';
 }
 
 export interface UploadProgress {
