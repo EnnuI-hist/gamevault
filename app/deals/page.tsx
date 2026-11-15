@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   Tag,
@@ -32,7 +32,9 @@ import AuthModal from '@/components/AuthModal';
 const PLANNED_CACHE_KEY = 'gamevault_deals_planned_cache';
 const UAH_RUB_CACHE_KEY = 'gamevault_uah_rub_rate';
 const CURRENCY_STORAGE_KEY = 'gamevault_deals_currency';
+const STEAM_PRICES_CACHE_KEY = 'gamevault_steam_ua_prices';
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 const FALLBACK_UAH_RUB = 2.4;
 const USD_TO_UAH_ESTIMATE = 41.5;
 
@@ -47,6 +49,7 @@ export interface SteamPriceData {
 
 // Форматирование цены в гривнах или рублях
 function formatPrice(uahAmount: number, currency: Currency, uahToRubRate: number): string {
+  if (uahAmount <= 0) return '0 ₴';
   if (currency === 'UAH') {
     const rounded = Math.round(uahAmount);
     return `${rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} ₴`;
@@ -65,8 +68,11 @@ function getDealDisplayPrices(
   // Если есть реальные региональные данные украинского Steam (cc=ua)
   if (steamPrice && typeof steamPrice.final === 'number') {
     const currentPriceUah = steamPrice.final / 100;
-    const initialPriceUah = steamPrice.initial / 100;
-    const discountPercent = steamPrice.discount_percent;
+    const initialPriceUah =
+      typeof steamPrice.initial === 'number' && steamPrice.initial > 0
+        ? steamPrice.initial / 100
+        : currentPriceUah;
+    const discountPercent = steamPrice.discount_percent ?? 0;
     const hasDiscount = discountPercent > 0 && initialPriceUah > currentPriceUah;
 
     return {
@@ -81,7 +87,7 @@ function getDealDisplayPrices(
     };
   }
 
-  // Запасной вариант (если Cloudflare Worker недоступен): пересчёт из CheapShark USD
+  // Запасной вариант (пока подгружаются точные цены Steam UA): пересчёт из CheapShark USD
   const usdSale = parseFloat(deal.salePrice) || 0;
   const usdNormal = parseFloat(deal.normalPrice) || 0;
   const discount = Math.round(parseFloat(deal.savings)) || 0;
@@ -99,6 +105,55 @@ function getDealDisplayPrices(
       : '',
     isSteamUa: false,
   };
+}
+
+// Запрос пачки ID через открытые CORS-прокси к Steam appdetails с региональным фильтром cc=ua
+async function fetchSteamChunk(chunk: string[]): Promise<Record<string, SteamPriceData>> {
+  if (chunk.length === 0) return {};
+  const targetUrl = `https://store.steampowered.com/api/appdetails?appids=${chunk.join(',')}&cc=ua&l=russian&filters=price_overview`;
+
+  // Список надёжных открытых прокси (proxy.cors.dev, codetabs.com, allorigins)
+  const proxyEndpoints = [
+    (url: string) => `https://proxy.cors.dev/${url}`,
+    (url: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+    (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  ];
+
+  for (const buildProxyUrl of proxyEndpoints) {
+    const proxyUrl = buildProxyUrl(targetUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+    try {
+      const res = await fetch(proxyUrl, {
+        signal: controller.signal,
+        headers: {
+          Origin: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) continue;
+
+      const json = await res.json();
+      if (json && typeof json === 'object') {
+        const prices: Record<string, SteamPriceData> = {};
+        for (const appId of chunk) {
+          const item = json[appId] || json[String(appId)];
+          if (item && item.success && item.data && item.data.price_overview) {
+            prices[appId] = item.data.price_overview;
+          }
+        }
+        if (Object.keys(prices).length > 0) {
+          return prices;
+        }
+      }
+    } catch {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  return {};
 }
 
 // Перевод оценок Steam на русский язык
@@ -145,6 +200,9 @@ export default function DealsPage() {
   // Кэш региональных цен украинского Steam (cc=ua) по steamAppID
   const [steamPrices, setSteamPrices] = useState<Record<string, SteamPriceData>>({});
   const hasLiveSteamUa = Object.keys(steamPrices).length > 0;
+
+  // Отслеживание уже запрошенных ID для избежания повторных запросов
+  const fetchedIdsRef = useRef<Set<string>>(new Set());
 
   // Блок 1: Скидки на вишлист
   const [plannedDeals, setPlannedDeals] = useState<PlannedMatch[]>([]);
@@ -202,65 +260,60 @@ export default function DealsPage() {
     setUahToRubRate(FALLBACK_UAH_RUB);
   }, []);
 
-  // 2. Параллельная пакетная загрузка региональных цен украинского Steam (cc=ua) через Cloudflare Worker
-  // Важная особенность API Steam appdetails: при отправке 30 appids сразу Steam часто отклоняет запрос.
-  // Разбиваем steamAppID на пачки по 1–5 ID (по 3 ID за запрос) и отправляем параллельно через Promise.allSettled.
-  const fetchSteamPrices = useCallback(async (ids: string[]) => {
+  // 2. Пакетная загрузка региональных цен украинского Steam (cc=ua) с плавной очередью по 3–4 запроса
+  const fetchSteamPrices = useCallback(async (ids: string[], forceFresh = false) => {
     const validIds = Array.from(
       new Set(ids.map((id) => id?.trim()).filter((id) => Boolean(id) && id !== '0'))
     );
-    if (validIds.length === 0) return;
 
-    // Пачки по 3 ID (в пределах 1–5 ID за запрос)
+    const neededIds = forceFresh
+      ? validIds
+      : validIds.filter((id) => !fetchedIdsRef.current.has(id));
+
+    if (neededIds.length === 0) return;
+
+    neededIds.forEach((id) => fetchedIdsRef.current.add(id));
+
+    // Пачки по 3 ID
     const CHUNK_SIZE = 3;
     const chunks: string[][] = [];
-    for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
-      chunks.push(validIds.slice(i, i + CHUNK_SIZE));
+    for (let i = 0; i < neededIds.length; i += CHUNK_SIZE) {
+      chunks.push(neededIds.slice(i, i + CHUNK_SIZE));
     }
 
-    const rawBase = process.env.NEXT_PUBLIC_STEAM_WORKER_URL?.trim();
-    const isInvalid = !rawBase || rawBase === 'https://workers.dev' || rawBase === 'http://workers.dev';
-    const baseUrl = (isInvalid
-      ? 'https://shiny-glade-1e5dsupabase-proxy.platonrysenko.workers.dev'
-      : rawBase
-    ).replace(/\/+$/, '');
+    // Очередь с параллельностью 3 одновременных запроса и задержкой 120 мс между пачками
+    const CONCURRENCY = 3;
+    let chunkIndex = 0;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
+    async function worker() {
+      while (chunkIndex < chunks.length) {
+        const currentIndex = chunkIndex++;
+        const chunk = chunks[currentIndex];
+        const newPrices = await fetchSteamChunk(chunk);
 
-    try {
-      const promises = chunks.map(async (chunk) => {
-        // Запрос строго в корень / с параметрами ?appids=...&cc=ua
-        const url = `${baseUrl}/?appids=${chunk.join(',')}&cc=ua`;
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) throw new Error(`Steam worker response: ${res.status}`);
-        const json = await res.json();
-        return { chunk, json };
-      });
-
-      const settled = await Promise.allSettled(promises);
-      clearTimeout(timeoutId);
-
-      const priceMap: Record<string, SteamPriceData> = {};
-      for (const result of settled) {
-        if (result.status === 'fulfilled' && result.value?.json) {
-          const { chunk, json } = result.value;
-          for (const appId of chunk) {
-            const item = json[appId] || json[String(appId)];
-            if (item && item.success && item.data && item.data.price_overview) {
-              priceMap[appId] = item.data.price_overview;
-            }
-          }
+        if (Object.keys(newPrices).length > 0) {
+          setSteamPrices((prev) => {
+            const updated = { ...prev, ...newPrices };
+            try {
+              sessionStorage.setItem(
+                STEAM_PRICES_CACHE_KEY,
+                JSON.stringify({ prices: updated, timestamp: Date.now() })
+              );
+            } catch {}
+            return updated;
+          });
         }
-      }
 
-      if (Object.keys(priceMap).length > 0) {
-        setSteamPrices((prev) => ({ ...prev, ...priceMap }));
+        // Пауза перед следующей пачкой, чтобы Steam не резал частоту
+        await new Promise((r) => setTimeout(r, 120));
       }
-    } catch (err) {
-      clearTimeout(timeoutId);
-      console.warn('Загрузка цен Steam UA (cc=ua) прервана или завершилась ошибкой:', err);
     }
+
+    const workers = Array.from(
+      { length: Math.min(CONCURRENCY, chunks.length) },
+      () => worker()
+    );
+    await Promise.allSettled(workers);
   }, []);
 
   // 3. Загрузка вишлиста из Supabase и проверка скидок через CheapShark API
@@ -276,7 +329,6 @@ export default function DealsPage() {
               setPlannedDeals(parsed.deals);
               setTotalPlannedCount(parsed.totalCount ?? 0);
               setLoadingPlanned(false);
-              // Запрашиваем цены Steam UA для закэшированных игр
               const ids = parsed.deals.map((m: PlannedMatch) => m.deal.steamAppID);
               fetchSteamPrices(ids);
               return;
@@ -307,7 +359,7 @@ export default function DealsPage() {
         return;
       }
 
-      // Параллельно опрашиваем CheapShark для каждой запланированной игры
+      // Опрашиваем CheapShark для каждой запланированной игры
       const matches: PlannedMatch[] = [];
       const promises = games.map(async (game) => {
         const deal = await searchSteamDealForGame(game.title);
@@ -332,7 +384,7 @@ export default function DealsPage() {
 
       // Запрашиваем региональные цены Steam UA (cc=ua)
       const plannedSteamIds = matches.map((m) => m.deal.steamAppID);
-      fetchSteamPrices(plannedSteamIds);
+      fetchSteamPrices(plannedSteamIds, forceFresh);
     } catch (err) {
       console.error('Ошибка проверки скидок на вишлист:', err);
     } finally {
@@ -368,7 +420,7 @@ export default function DealsPage() {
         setHasMore(newDeals.length >= 48);
         setPageNumber(page);
 
-        // Пакетно подтягиваем украинские региональные цены Steam для новых карточек
+        // Пакетно подтягиваем украинские региональные цены Steam через очередь
         const ids = newDeals.map((d) => d.steamAppID);
         fetchSteamPrices(ids);
       } catch (err) {
@@ -404,6 +456,18 @@ export default function DealsPage() {
       }
     } catch {}
 
+    // Восстановление сохранённых цен Steam UA из сессии
+    try {
+      const cachedPrices = sessionStorage.getItem(STEAM_PRICES_CACHE_KEY);
+      if (cachedPrices) {
+        const { prices, timestamp } = JSON.parse(cachedPrices);
+        if (prices && typeof prices === 'object' && Date.now() - timestamp < TWO_HOURS_MS) {
+          setSteamPrices(prices);
+          Object.keys(prices).forEach((id) => fetchedIdsRef.current.add(id));
+        }
+      }
+    } catch {}
+
     loadUahToRubRate();
     loadPlannedDiscounts();
     loadAllBacklogTitles();
@@ -418,7 +482,7 @@ export default function DealsPage() {
     return () => clearTimeout(timer);
   }, [loadSteamDeals, searchQuery, sortBy]);
 
-  // Фильтрация акций по минимальному порогу скидки (с учётом реальной скидки Steam UA, если она есть)
+  // Фильтрация акций по минимальному порогу скидки (с учётом реальной скидки Steam UA)
   const filteredDeals = useMemo(() => {
     return deals.filter((deal) => {
       const steamPrice = steamPrices[deal.steamAppID];
@@ -530,12 +594,12 @@ export default function DealsPage() {
               ) : (
                 <div
                   className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-mono font-medium text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.25)] backdrop-blur-md"
-                  title="Cloudflare Worker недоступен — цены приблизительно рассчитаны по курсу"
+                  title="Загрузка точных региональных цен Steam UA..."
                 >
                   <span className="relative flex h-2 w-2">
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
                   </span>
-                  <span>Резервный расчёт по курсу (Steam UA недоступен)</span>
+                  <span>Загрузка цен Steam UA...</span>
                 </div>
               )}
 
@@ -558,6 +622,11 @@ export default function DealsPage() {
               type="button"
               onClick={() => {
                 playClick();
+                try {
+                  sessionStorage.removeItem(STEAM_PRICES_CACHE_KEY);
+                  sessionStorage.removeItem(PLANNED_CACHE_KEY);
+                  fetchedIdsRef.current.clear();
+                } catch {}
                 loadUahToRubRate();
                 loadPlannedDiscounts(true);
                 loadSteamDeals(0, false);
@@ -653,8 +722,8 @@ export default function DealsPage() {
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
 
-                    {/* Бейдж размера скидки (скрывается, если discount_percent <= 0) */}
-                    {priceInfo.hasDiscount && (
+                    {/* Бейдж размера скидки (скрывается, если discount <= 0%) */}
+                    {priceInfo.hasDiscount && priceInfo.discount > 0 && (
                       <div className="absolute top-2.5 right-2.5 flex items-center gap-1 rounded-xl bg-rose-600 px-3 py-1 font-mono text-sm font-black text-white shadow-lg ring-1 ring-white/20">
                         <span>-{priceInfo.discount}%</span>
                       </div>
@@ -851,7 +920,7 @@ export default function DealsPage() {
 
           {/* Панель правых переключателей */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Индикатор источника цен рядом с переключателем валюты */}
+            {/* Индикатор источника точных цен Steam UA */}
             {hasLiveSteamUa ? (
               <div
                 className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-mono font-bold text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.25)] shrink-0"
@@ -867,13 +936,13 @@ export default function DealsPage() {
             ) : (
               <div
                 className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-mono font-bold text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.2)] shrink-0"
-                title="Cloudflare Worker недоступен — цены приблизительно рассчитаны по курсу"
+                title="Синхронизация региональных цен Steam UA..."
               >
                 <span className="relative flex h-2 w-2">
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
                 </span>
-                <span className="hidden sm:inline">Резервный расчёт по курсу (Steam UA недоступен)</span>
-                <span className="sm:hidden">Резервный расчёт</span>
+                <span className="hidden sm:inline">Синхронизация цен Steam UA...</span>
+                <span className="sm:hidden">Синхронизация...</span>
               </div>
             )}
 
@@ -1015,8 +1084,8 @@ export default function DealsPage() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
 
-                      {/* Скидка в правом верхнем углу (ТОЛЬКО если discount_percent > 0%) */}
-                      {priceInfo.hasDiscount && (
+                      {/* Скидка в правом верхнем углу (ТОЛЬКО если discount > 0%) */}
+                      {priceInfo.hasDiscount && priceInfo.discount > 0 && (
                         <div className="absolute top-2 right-2 rounded-lg bg-rose-600 px-2 py-0.5 font-mono text-xs font-black text-white shadow-md">
                           -{priceInfo.discount}%
                         </div>
@@ -1059,7 +1128,7 @@ export default function DealsPage() {
                         </div>
                       </div>
 
-                      {/* Цены: если discount <= 0%, зачёркнутая старая цена скрывается */}
+                      {/* Цены: если скидки нет (discount <= 0), зачёркнутая старая цена скрывается */}
                       <div className="pt-2 border-t border-white/5 flex items-baseline justify-between">
                         <div className="flex items-baseline gap-2">
                           {priceInfo.hasDiscount && (
