@@ -15,12 +15,11 @@ import {
   MessageSquare,
   MessageSquarePlus,
   Loader2,
-  ListTodo,
   ImagePlus,
   ImageIcon,
   Upload,
   Link as LinkIcon,
-  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
@@ -30,7 +29,7 @@ import type { BacklogItem, GameStatus } from '@/lib/types';
 
 type FilterType = 'all' | GameStatus;
 
-/** Конвертирует загруженное изображение в WebP через Canvas */
+/** Конвертирует изображение в WebP через Canvas с качеством 0.92 */
 async function compressCoverToWebP(file: File): Promise<Blob> {
   return new Promise((resolve) => {
     if (!file.type.startsWith('image/') || file.type === 'image/webp') {
@@ -73,21 +72,24 @@ export default function BacklogPage() {
   const [items, setItems] = useState<BacklogItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Форма быстрого добавления
+  // Форма добавления игры
   const [newTitle, setNewTitle] = useState('');
-  const [newStatus, setNewStatus] = useState<GameStatus>('planned');
+  const [newStatus, setNewStatus] = useState<GameStatus>('completed');
+  const [newNote, setNewNote] = useState('');
+  const [coverSourceType, setCoverSourceType] = useState<'none' | 'file' | 'url'>('none');
+  const [newCoverFile, setNewCoverFile] = useState<File | null>(null);
+  const [newCoverUrl, setNewCoverUrl] = useState('');
+  const [newCoverPreview, setNewCoverPreview] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showCoverInputs, setShowCoverInputs] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const addFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Поиск и фильтры
+  // Фильтры и поиск
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Инлайн редактирование пометки
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState('');
-
-  // Модалка обложки
+  // Модалка изменения обложки
   const [coverModalItem, setCoverModalItem] = useState<BacklogItem | null>(null);
   const [coverTab, setCoverTab] = useState<'upload' | 'url'>('upload');
   const [coverUrlInput, setCoverUrlInput] = useState('');
@@ -95,7 +97,12 @@ export default function BacklogPage() {
   const [coverPreview, setCoverPreview] = useState('');
   const [isSavingCover, setIsSavingCover] = useState(false);
   const [coverError, setCoverError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Модалка изменения заметки
+  const [noteModalItem, setNoteModalItem] = useState<BacklogItem | null>(null);
+  const [noteInputDraft, setNoteInputDraft] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   const supabase = createClient();
 
@@ -116,8 +123,37 @@ export default function BacklogPage() {
     loadBacklog();
   }, []);
 
-  // Быстрое добавление игры по Enter / кнопке
-  const handleQuickAdd = async (e: React.FormEvent) => {
+  // Вставка обложки из буфера по Ctrl+V при открытой форме или модалке
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const itemsList = Array.from(e.clipboardData?.items ?? []);
+      const imgItem = itemsList.find((i) => i.type.startsWith('image/'));
+      if (!imgItem) return;
+
+      const file = imgItem.getAsFile();
+      if (!file) return;
+
+      if (coverModalItem) {
+        // Если открыто модальное окно обложки
+        setCoverFileInput(file);
+        setCoverPreview(URL.createObjectURL(file));
+        setCoverTab('upload');
+        setCoverError('');
+      } else if (user) {
+        // Если активна форма создания
+        setNewCoverFile(file);
+        setNewCoverPreview(URL.createObjectURL(file));
+        setCoverSourceType('file');
+        setShowCoverInputs(true);
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [coverModalItem, user]);
+
+  // Добавление новой игры
+  const handleAddGame = async (e: React.FormEvent) => {
     e.preventDefault();
     const title = newTitle.trim();
     if (!title || isAdding) return;
@@ -125,13 +161,39 @@ export default function BacklogPage() {
     setIsAdding(true);
 
     try {
+      let finalCoverUrl: string | null = null;
+
+      // Загрузка файла обложки, если выбран
+      if (coverSourceType === 'file' && newCoverFile) {
+        const compressed = await compressCoverToWebP(newCoverFile);
+        const path = `backlog-covers/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+
+        const { error: upErr } = await supabase.storage
+          .from('screenshots')
+          .upload(path, compressed, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: 'image/webp',
+          });
+
+        if (upErr) throw upErr;
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from('screenshots').getPublicUrl(path);
+
+        finalCoverUrl = publicUrl;
+      } else if (coverSourceType === 'url' && newCoverUrl.trim()) {
+        finalCoverUrl = newCoverUrl.trim();
+      }
+
       const { data, error } = await supabase
         .from('game_backlog')
         .insert({
           title,
           status: newStatus,
-          note: '',
-          cover_url: null,
+          note: newNote.trim(),
+          cover_url: finalCoverUrl,
         })
         .select()
         .single();
@@ -141,17 +203,24 @@ export default function BacklogPage() {
       if (data) {
         setItems((prev) => [data as BacklogItem, ...prev]);
         setNewTitle('');
-        inputRef.current?.focus();
+        setNewNote('');
+        setNewCoverFile(null);
+        setNewCoverUrl('');
+        setNewCoverPreview('');
+        setCoverSourceType('none');
+        setShowCoverInputs(false);
+        setNewStatus('completed');
+        titleInputRef.current?.focus();
       }
     } catch (err) {
-      console.error('Ошибка добавления игры в бэклог:', err);
+      console.error('Ошибка добавления игры:', err);
       alert('Не удалось добавить игру в список');
     } finally {
       setIsAdding(false);
     }
   };
 
-  // Мгновенное переключение статуса
+  // Переключение статуса в 1 клик
   const handleStatusChange = async (id: string, nextStatus: GameStatus) => {
     const prevItems = [...items];
     setItems((prev) =>
@@ -170,37 +239,24 @@ export default function BacklogPage() {
     }
   };
 
-  // Чекбокс: переключение в "Пройдено" и обратно
-  const handleToggleComplete = async (item: BacklogItem) => {
-    if (!user) return;
-    const nextStatus: GameStatus = item.status === 'completed' ? 'planned' : 'completed';
-    await handleStatusChange(item.id, nextStatus);
-  };
-
-  // Сохранение пометки
-  const handleSaveNote = async (id: string) => {
-    const cleanNote = noteDraft.trim();
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, note: cleanNote } : item))
-    );
-    setEditingNoteId(null);
-
-    const { error } = await supabase
-      .from('game_backlog')
-      .update({ note: cleanNote })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Ошибка сохранения пометки:', error);
-      loadBacklog();
-    }
-  };
-
-  // Удаление строки
+  // Удаление игры
   const handleDelete = async (item: BacklogItem) => {
     if (!confirm(`Удалить «${item.title}» из списка?`)) return;
 
     setItems((prev) => prev.filter((i) => i.id !== item.id));
+
+    // Если была обложка в storage, подчистим
+    if (item.cover_url && item.cover_url.includes('/backlog-covers/')) {
+      try {
+        const parts = item.cover_url.split('/screenshots/');
+        if (parts[1]) {
+          const oldPath = decodeURIComponent(parts[1].split('?')[0]);
+          await supabase.storage.from('screenshots').remove([oldPath]);
+        }
+      } catch (e) {
+        console.warn('Не удалось удалить файл обложки:', e);
+      }
+    }
 
     const { error } = await supabase
       .from('game_backlog')
@@ -208,13 +264,13 @@ export default function BacklogPage() {
       .eq('id', item.id);
 
     if (error) {
-      console.error('Ошибка удаления игры:', error);
+      console.error('Ошибка удаления:', error);
       loadBacklog();
-      alert('Не удалось удалить строку');
+      alert('Не удалось удалить игру');
     }
   };
 
-  // Открытие модалки обложки
+  // Управление модалкой обложки
   const openCoverModal = (item: BacklogItem) => {
     setCoverModalItem(item);
     setCoverUrlInput(item.cover_url || '');
@@ -232,14 +288,6 @@ export default function BacklogPage() {
     setCoverError('');
   };
 
-  // Обработка выбора файла обложки
-  const handleCoverFileChange = (file: File) => {
-    setCoverFileInput(file);
-    setCoverError('');
-    setCoverPreview(URL.createObjectURL(file));
-  };
-
-  // Сохранение обложки (загрузка файла или прямая ссылка)
   const handleSaveCover = async () => {
     if (!coverModalItem) return;
     setIsSavingCover(true);
@@ -249,17 +297,13 @@ export default function BacklogPage() {
       let finalCoverUrl: string | null = null;
 
       if (coverTab === 'upload') {
-        if (!coverFileInput && !coverPreview) {
-          finalCoverUrl = null;
-        } else if (coverFileInput) {
-          // Сжатие в WebP
-          const compressedBlob = await compressCoverToWebP(coverFileInput);
-          const ext = 'webp';
-          const storagePath = `backlog-covers/${coverModalItem.id}-${Date.now()}.${ext}`;
+        if (coverFileInput) {
+          const compressed = await compressCoverToWebP(coverFileInput);
+          const path = `backlog-covers/${coverModalItem.id}-${Date.now()}.webp`;
 
           const { error: upErr } = await supabase.storage
             .from('screenshots')
-            .upload(storagePath, compressedBlob, {
+            .upload(path, compressed, {
               cacheControl: '3600',
               upsert: true,
               contentType: 'image/webp',
@@ -267,21 +311,34 @@ export default function BacklogPage() {
 
           if (upErr) throw upErr;
 
-          const { data: { publicUrl } } = supabase.storage
-            .from('screenshots')
-            .getPublicUrl(storagePath);
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from('screenshots').getPublicUrl(path);
 
           finalCoverUrl = publicUrl;
+
+          // Удаляем старую обложку из хранилища
+          if (
+            coverModalItem.cover_url &&
+            coverModalItem.cover_url.includes('/backlog-covers/')
+          ) {
+            try {
+              const parts = coverModalItem.cover_url.split('/screenshots/');
+              if (parts[1]) {
+                const oldPath = decodeURIComponent(parts[1].split('?')[0]);
+                await supabase.storage.from('screenshots').remove([oldPath]);
+              }
+            } catch (delErr) {
+              console.warn('Ошибка удаления старой обложки:', delErr);
+            }
+          }
         } else {
-          finalCoverUrl = coverModalItem.cover_url || null;
+          finalCoverUrl = coverModalItem.cover_url ?? null;
         }
       } else {
-        // Прямая ссылка
-        const trimmed = coverUrlInput.trim();
-        finalCoverUrl = trimmed || null;
+        finalCoverUrl = coverUrlInput.trim() || null;
       }
 
-      // Обновляем в БД
       const { error: dbErr } = await supabase
         .from('game_backlog')
         .update({ cover_url: finalCoverUrl })
@@ -289,7 +346,6 @@ export default function BacklogPage() {
 
       if (dbErr) throw dbErr;
 
-      // Обновляем состояние
       setItems((prev) =>
         prev.map((i) =>
           i.id === coverModalItem.id ? { ...i, cover_url: finalCoverUrl } : i
@@ -307,11 +363,21 @@ export default function BacklogPage() {
     }
   };
 
-  // Удаление обложки
   const handleRemoveCover = async () => {
     if (!coverModalItem) return;
     setIsSavingCover(true);
     try {
+      if (
+        coverModalItem.cover_url &&
+        coverModalItem.cover_url.includes('/backlog-covers/')
+      ) {
+        const parts = coverModalItem.cover_url.split('/screenshots/');
+        if (parts[1]) {
+          const oldPath = decodeURIComponent(parts[1].split('?')[0]);
+          await supabase.storage.from('screenshots').remove([oldPath]);
+        }
+      }
+
       const { error } = await supabase
         .from('game_backlog')
         .update({ cover_url: null })
@@ -331,6 +397,38 @@ export default function BacklogPage() {
       setCoverError('Не удалось удалить обложку');
     } finally {
       setIsSavingCover(false);
+    }
+  };
+
+  // Управление модалкой заметки
+  const openNoteModal = (item: BacklogItem) => {
+    setNoteModalItem(item);
+    setNoteInputDraft(item.note || '');
+  };
+
+  const handleSaveNoteModal = async () => {
+    if (!noteModalItem) return;
+    setIsSavingNote(true);
+    const clean = noteInputDraft.trim();
+
+    try {
+      const { error } = await supabase
+        .from('game_backlog')
+        .update({ note: clean })
+        .eq('id', noteModalItem.id);
+
+      if (error) throw error;
+
+      setItems((prev) =>
+        prev.map((i) => (i.id === noteModalItem.id ? { ...i, note: clean } : i))
+      );
+
+      setNoteModalItem(null);
+    } catch (err) {
+      console.error('Ошибка сохранения заметки:', err);
+      alert('Не удалось сохранить заметку');
+    } finally {
+      setIsSavingNote(false);
     }
   };
 
@@ -383,7 +481,7 @@ export default function BacklogPage() {
     },
     {
       id: 'playing',
-      label: 'В процессе',
+      label: 'Прохожу',
       icon: Gamepad2,
       count: counts.playing,
       activeClass: 'bg-amber-600 text-white shadow-amber-600/30',
@@ -405,44 +503,48 @@ export default function BacklogPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      {/* Шапка раздела */}
-      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      {/* Шапка страницы трекера */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              Список игр (Бэклог)
+            <h1 className="text-3xl font-bold tracking-tight text-white">
+              Список игр
             </h1>
             <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-400">
-              <ListTodo size={12} />
-              Трекер
+              <Sparkles size={12} />
+              Галерея постеров
             </span>
           </div>
-          <p className="mt-1 text-xs sm:text-sm text-white/40">
-            Персональный трекер прохождения с постерами, статусами и быстрыми пометками
+          <p className="mt-1 text-sm text-white/40">
+            {items.length > 0
+              ? `${items.length} ${pluralGames(items.length)} в вашем списке`
+              : 'Список пуст'}
           </p>
         </div>
       </div>
 
-      {/* Быстрое добавление (только для владельца) */}
+      {/* Форма быстрого добавления (только для владельца) */}
       {user && (
         <form
-          onSubmit={handleQuickAdd}
-          className="mb-8 rounded-2xl border border-white/10 bg-[#131720] p-3 sm:p-4 shadow-xl backdrop-blur-sm"
+          onSubmit={handleAddGame}
+          className="mb-8 rounded-2xl border border-white/10 bg-[#131720] p-4 sm:p-5 shadow-xl backdrop-blur-sm space-y-3.5"
         >
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+            {/* Название игры */}
             <div className="relative flex-1">
               <input
-                ref={inputRef}
+                ref={titleInputRef}
                 type="text"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Быстро добавить игру... (нажми Enter)"
+                placeholder="Название игры... (нажми Enter для добавления)"
+                required
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
               />
             </div>
 
-            {/* Выбор статуса по умолчанию */}
+            {/* Выбор статуса по умолчанию (Пройдено) */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none shrink-0">
               {STATUS_LIST.map((opt) => {
                 const Icon = opt.icon;
@@ -465,6 +567,25 @@ export default function BacklogPage() {
               })}
             </div>
 
+            {/* Кнопка добавления обложки / индикатор */}
+            <button
+              type="button"
+              onClick={() => setShowCoverInputs((prev) => !prev)}
+              className={`flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-medium transition-all shrink-0 ${
+                newCoverPreview || newCoverUrl.trim()
+                  ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-300'
+                  : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <ImagePlus size={14} />
+              <span>
+                {newCoverPreview || newCoverUrl.trim()
+                  ? 'Обложка прикреплена'
+                  : '+ Обложка'}
+              </span>
+            </button>
+
+            {/* Кнопка Добавить */}
             <button
               type="submit"
               disabled={isAdding || !newTitle.trim()}
@@ -478,13 +599,103 @@ export default function BacklogPage() {
               <span>Добавить</span>
             </button>
           </div>
+
+          {/* Дополнительная панель добавления обложки и заметки */}
+          {showCoverInputs && (
+            <div className="pt-3 border-t border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-in fade-in duration-200">
+              {/* Поле заметки */}
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Заметка или оценка (например: 9/10, шедевр)..."
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                />
+              </div>
+
+              {/* Выбор файла с ПК */}
+              <input
+                ref={addFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setNewCoverFile(file);
+                    setNewCoverPreview(URL.createObjectURL(file));
+                    setCoverSourceType('file');
+                  }
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => addFileInputRef.current?.click()}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-all shrink-0"
+              >
+                <Upload size={13} />
+                <span>Выбрать файл (или Ctrl+V)</span>
+              </button>
+
+              {/* Поле прямой ссылки */}
+              <div className="flex-1 min-w-[200px]">
+                <input
+                  type="url"
+                  value={newCoverUrl}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setNewCoverUrl(url);
+                    if (url.trim()) {
+                      setNewCoverPreview(url.trim());
+                      setCoverSourceType('url');
+                      setNewCoverFile(null);
+                    } else if (!newCoverFile) {
+                      setNewCoverPreview('');
+                      setCoverSourceType('none');
+                    }
+                  }}
+                  placeholder="Или вставьте URL ссылки..."
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+                />
+              </div>
+
+              {/* Превью выбранной обложки */}
+              {newCoverPreview && (
+                <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 p-1 shrink-0">
+                  <div className="relative h-7 w-5 overflow-hidden rounded">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={newCoverPreview}
+                      alt="Превью"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewCoverFile(null);
+                      setNewCoverUrl('');
+                      setNewCoverPreview('');
+                      setCoverSourceType('none');
+                    }}
+                    className="p-1 text-white/40 hover:text-white"
+                    title="Сбросить обложку"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </form>
       )}
 
       {/* Панель фильтров и поиска */}
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         {/* Вкладки-фильтры по статусам */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           {filterTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeFilter === tab.id;
@@ -516,7 +727,7 @@ export default function BacklogPage() {
         </div>
 
         {/* Поиск */}
-        <div className="relative w-full md:w-64">
+        <div className="relative w-full lg:w-72">
           <Search
             size={16}
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
@@ -525,7 +736,7 @@ export default function BacklogPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Поиск по названию и пометкам..."
+            placeholder="Поиск по названию и заметкам..."
             className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-9 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
           />
           {searchQuery && (
@@ -541,39 +752,38 @@ export default function BacklogPage() {
         </div>
       </div>
 
-      {/* Вертикальный табличный список (просторные карточки) */}
+      {/* Адаптивная сетка вертикальных постеров 2:3 */}
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-24 animate-pulse rounded-2xl bg-white/5 border border-white/5"
-            />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-xl bg-white/5">
+              <div className="aspect-[2/3] rounded-t-xl bg-white/10" />
+              <div className="p-3 space-y-2">
+                <div className="h-3 rounded bg-white/10" />
+                <div className="h-2 w-2/3 rounded bg-white/5" />
+              </div>
+            </div>
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-white/30">
-            <ListTodo size={28} />
+        <div className="flex flex-col items-center justify-center py-28 text-center">
+          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+            <Gamepad2 size={36} className="text-white/30" />
           </div>
-          <h3 className="text-base font-semibold text-white/70">
-            Список пуст
-          </h3>
-          <p className="mt-1 text-xs text-white/30 max-w-sm">
+          <h2 className="text-xl font-semibold text-white/60">Список пуст</h2>
+          <p className="mt-2 text-sm text-white/30">
             {user
-              ? 'Начните вводить названия игр в поле ввода сверху — можно за пару секунд накидать весь бэклог'
+              ? 'Добавьте первую игру через форму сверху'
               : 'Владелец пока не добавил игры в трекер'}
           </p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-white/30">
-            <Search size={22} />
+        <div className="flex flex-col items-center justify-center py-20 text-center rounded-2xl border border-dashed border-white/10 bg-white/[0.01]">
+          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-white/30">
+            <Search size={26} />
           </div>
-          <h3 className="text-sm font-semibold text-white/70">
-            Ничего не найдено
-          </h3>
-          <p className="mt-1 text-xs text-white/30">
+          <h3 className="text-base font-semibold text-white/80">Ничего не найдено</h3>
+          <p className="mt-1 text-sm text-white/40">
             {searchQuery
               ? `По запросу «${searchQuery}» нет совпадений`
               : 'В этой категории пока нет игр'}
@@ -585,203 +795,134 @@ export default function BacklogPage() {
                 setActiveFilter('all');
                 setSearchQuery('');
               }}
-              className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+              className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
             >
               Сбросить фильтры
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredItems.map((item) => {
-            const isCompleted = item.status === 'completed';
-            const isEditingThisNote = editingNoteId === item.id;
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              className="group relative flex flex-col overflow-hidden rounded-xl border border-white/5 bg-[#131720] transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/10 hover:-translate-y-1"
+            >
+              {/* Постер 2:3 */}
+              <div className="relative aspect-[2/3] w-full overflow-hidden">
+                {item.cover_url ? (
+                  <Image
+                    src={item.cover_url}
+                    alt={item.title}
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                  />
+                ) : (
+                  /* Стильная карточка-заглушка 2:3 с градиентом и названием игры */
+                  <div className="flex h-full w-full flex-col items-center justify-between p-4 text-center bg-gradient-to-br from-indigo-950/80 via-slate-900 to-[#131720] border border-white/5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-white/30 mt-4">
+                      <Gamepad2 size={20} />
+                    </div>
 
-            return (
-              <div
-                key={item.id}
-                className={`group flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border p-4 sm:p-5 transition-all duration-200 ${
-                  isCompleted
-                    ? 'border-emerald-500/30 bg-emerald-950/[0.16] hover:bg-emerald-950/[0.22] hover:border-emerald-500/40 shadow-sm'
-                    : 'border-white/5 bg-[#131720] hover:border-white/15 hover:bg-[#161b26] shadow-sm'
-                }`}
-              >
-                {/* Левая часть: Чекбокс + Обложка 52x70 + Название и Заметка */}
-                <div className="flex items-center gap-3.5 sm:gap-4 min-w-0 flex-1">
-                  {/* Чекбокс переключения в "Пройдено" */}
-                  <button
-                    type="button"
-                    disabled={!user}
-                    onClick={() => handleToggleComplete(item)}
-                    title={
-                      !user
-                        ? isCompleted
-                          ? 'Пройдено'
-                          : 'Не завершено'
-                        : isCompleted
-                        ? 'Снять отметку «Пройдено»'
-                        : 'Отметить как «Пройдено»'
-                    }
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border transition-all ${
-                      isCompleted
-                        ? 'border-emerald-500/60 bg-emerald-500/25 text-emerald-400 shadow-sm shadow-emerald-500/20'
-                        : 'border-white/20 bg-white/5 text-transparent hover:border-indigo-400 hover:bg-indigo-500/10'
-                    } ${user ? 'cursor-pointer' : 'cursor-default'}`}
-                  >
-                    <Check
-                      size={16}
-                      className={isCompleted ? 'opacity-100' : 'opacity-0'}
-                    />
-                  </button>
+                    <p className="font-bold text-white text-sm sm:text-base leading-snug line-clamp-3 px-1">
+                      {item.title}
+                    </p>
 
-                  {/* Мини-обложка (52×70 px) */}
-                  <div className="relative shrink-0">
-                    {item.cover_url ? (
-                      <div
-                        onClick={() => user && openCoverModal(item)}
-                        className={`group/cover relative h-[70px] w-[52px] overflow-hidden rounded-lg border border-white/10 bg-black/40 shadow-md ${
-                          user ? 'cursor-pointer' : ''
-                        }`}
-                        title={user ? 'Нажмите, чтобы изменить обложку' : undefined}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.cover_url}
-                          alt={item.title}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover/cover:scale-105"
-                        />
-                        {user && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover/cover:opacity-100">
-                            <Edit3 size={14} className="text-white" />
-                          </div>
-                        )}
-                      </div>
-                    ) : user ? (
+                    {user ? (
                       <button
                         type="button"
                         onClick={() => openCoverModal(item)}
-                        title="Добавить обложку игры"
-                        className={`flex h-[70px] w-[52px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed transition-all ${
-                          isCompleted
-                            ? 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-400 hover:bg-emerald-500/15 text-emerald-400/60 hover:text-emerald-300'
-                            : 'border-white/20 bg-white/[0.03] hover:border-indigo-400 hover:bg-white/10 text-white/40 hover:text-indigo-300'
-                        }`}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 text-white px-2.5 py-1 text-xs font-medium shadow-lg mb-2"
                       >
-                        <ImagePlus size={16} />
-                        <span className="text-[9px] font-medium leading-none">Фото</span>
+                        <ImagePlus size={13} />
+                        <span>Обложка</span>
                       </button>
                     ) : (
-                      <div className="flex h-[70px] w-[52px] items-center justify-center rounded-lg border border-white/5 bg-white/[0.02] text-white/15">
-                        <ImageIcon size={18} />
-                      </div>
+                      <div className="h-6" />
                     )}
                   </div>
+                )}
 
-                  {/* Название игры и пометка (крупный чёткий светлый шрифт без зачёркивания) */}
-                  <div className="min-w-0 flex-1">
-                    <h3
-                      className="text-base sm:text-lg font-bold text-white group-hover:text-indigo-200 transition-colors leading-snug"
-                      title={item.title}
-                    >
-                      {item.title}
-                    </h3>
+                {/* Оверлей при наведении */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
-                    {/* Заметка под названием */}
-                    {isEditingThisNote ? (
-                      <div className="mt-2 flex items-center gap-1.5 max-w-md">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={noteDraft}
-                          onChange={(e) => setNoteDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveNote(item.id);
-                            if (e.key === 'Escape') setEditingNoteId(null);
-                          }}
-                          placeholder="Заметка (оценка, впечатления, мысли)..."
-                          className="w-full rounded-lg border border-indigo-500/40 bg-white/5 px-2.5 py-1 text-xs sm:text-sm text-white placeholder-white/30 outline-none focus:border-indigo-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleSaveNote(item.id)}
-                          className="rounded-lg bg-indigo-600 p-1.5 text-white hover:bg-indigo-500"
-                          title="Сохранить"
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingNoteId(null)}
-                          className="rounded-lg bg-white/10 p-1.5 text-white/50 hover:bg-white/20 hover:text-white"
-                          title="Отмена"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : item.note ? (
-                      <div
-                        onClick={() => {
-                          if (user) {
-                            setEditingNoteId(item.id);
-                            setNoteDraft(item.note);
-                          }
-                        }}
-                        className={`mt-1.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs text-white/75 bg-white/5 border border-white/5 ${
-                          user ? 'cursor-pointer hover:bg-white/10 hover:text-white' : ''
-                        }`}
-                        title={user ? 'Нажмите для редактирования заметки' : undefined}
-                      >
-                        <MessageSquare size={12} className="text-indigo-400 shrink-0" />
-                        <span className="leading-relaxed">{item.note}</span>
-                        {user && (
-                          <Edit3 size={11} className="text-white/30 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        )}
-                      </div>
-                    ) : (
-                      user && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingNoteId(item.id);
-                            setNoteDraft('');
-                          }}
-                          className="mt-1 flex items-center gap-1 text-xs text-white/30 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                          <MessageSquarePlus size={12} />
-                          <span>Добавить заметку</span>
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-
-                {/* Правая часть: Селектор статуса + Удаление */}
-                <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                {/* Бейдж статуса (слева сверху) с мгновенным переключением в 1 клик для владельца */}
+                <div className="absolute left-2 top-2 z-20">
                   <StatusBadge
                     status={item.status}
                     isOwner={!!user}
-                    onStatusChange={(status) => handleStatusChange(item.id, status)}
-                    size="md"
+                    onStatusChange={(newStatus) => handleStatusChange(item.id, newStatus)}
+                    size="sm"
                   />
+                </div>
 
-                  {user && (
+                {/* Кнопки действий владельца (справа сверху при наведении) */}
+                {user && (
+                  <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                     <button
                       type="button"
-                      onClick={() => handleDelete(item)}
-                      title="Удалить из списка"
-                      className="rounded-lg p-2 text-white/30 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                      title="Сменить обложку"
+                      onClick={() => openCoverModal(item)}
+                      className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-indigo-600 hover:text-white"
                     >
-                      <Trash2 size={16} />
+                      <ImagePlus size={14} />
                     </button>
+
+                    <button
+                      type="button"
+                      title="Удалить из списка"
+                      onClick={() => handleDelete(item)}
+                      className="flex items-center justify-center rounded-lg bg-black/70 backdrop-blur-md p-2 text-white/70 shadow-lg transition hover:bg-red-600 hover:text-white"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Нижняя часть карточки: Название и Заметка */}
+              <div className="p-3 flex flex-col gap-1.5 flex-1 justify-between">
+                <div>
+                  <h3
+                    className="truncate text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors"
+                    title={item.title}
+                  >
+                    {item.title}
+                  </h3>
+
+                  {/* Заметка / Оценка */}
+                  {item.note ? (
+                    <div
+                      onClick={() => user && openNoteModal(item)}
+                      className={`mt-1.5 flex items-center gap-1.5 rounded-lg bg-white/5 px-2 py-1 text-[11px] text-white/70 ${
+                        user ? 'cursor-pointer hover:bg-white/10 hover:text-white' : ''
+                      }`}
+                      title={user ? 'Нажмите для изменения заметки' : item.note}
+                    >
+                      <MessageSquare size={11} className="text-indigo-400 shrink-0" />
+                      <span className="truncate">{item.note}</span>
+                    </div>
+                  ) : (
+                    user && (
+                      <button
+                        type="button"
+                        onClick={() => openNoteModal(item)}
+                        className="mt-1 flex items-center gap-1 text-[11px] text-white/30 hover:text-indigo-300 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <MessageSquarePlus size={11} />
+                        <span>+ заметка</span>
+                      </button>
+                    )
                   )}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Модалка установки обложки (Загрузка файла или прямая ссылка) */}
+      {/* Модалка изменения обложки */}
       {coverModalItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
@@ -835,26 +976,30 @@ export default function BacklogPage() {
             {coverTab === 'upload' && (
               <div>
                 <input
-                  ref={fileInputRef}
+                  ref={editFileInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) handleCoverFileChange(f);
+                    if (f) {
+                      setCoverFileInput(f);
+                      setCoverPreview(URL.createObjectURL(f));
+                      setCoverError('');
+                    }
                   }}
                 />
 
                 <div
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => editFileInputRef.current?.click()}
                   className="relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-white/[0.02] p-6 hover:border-indigo-500/50 hover:bg-white/5 transition-all text-center"
                 >
                   <Upload size={24} className="text-white/40" />
                   <p className="text-xs font-medium text-white/70">
-                    Нажмите для выбора файла (PNG, JPG, WebP)
+                    Нажмите для выбора файла (поддерживается Ctrl + V)
                   </p>
                   <p className="text-[10px] text-white/30">
-                    Автоматически сожмётся в WebP для быстрой загрузки
+                    Автоматически сожмётся в WebP 0.92
                   </p>
                 </div>
               </div>
@@ -864,7 +1009,7 @@ export default function BacklogPage() {
             {coverTab === 'url' && (
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-white/60">
-                  Прямая ссылка на постер
+                  Прямая ссылка на картинку
                 </label>
                 <input
                   type="url"
@@ -877,7 +1022,7 @@ export default function BacklogPage() {
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
                 />
                 <p className="mt-1 text-[10px] text-white/30">
-                  Вставьте URL картинки из Steam, Игромании или интернета
+                  Вставьте URL постера из Steam или интернета
                 </p>
               </div>
             )}
@@ -885,7 +1030,7 @@ export default function BacklogPage() {
             {/* Предпросмотр обложки */}
             {coverPreview && (
               <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-2.5">
-                <div className="relative h-[70px] w-[52px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40">
+                <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={coverPreview}
@@ -897,7 +1042,7 @@ export default function BacklogPage() {
                 <div className="flex-1 min-w-0 text-xs">
                   <p className="font-medium text-white truncate">Предпросмотр обложки</p>
                   <p className="text-[11px] text-white/40 mt-0.5">
-                    {coverFileInput ? `${coverFileInput.name}` : 'Изображение по ссылке'}
+                    {coverFileInput ? coverFileInput.name : 'Изображение по ссылке'}
                   </p>
                 </div>
               </div>
@@ -951,6 +1096,77 @@ export default function BacklogPage() {
           </div>
         </div>
       )}
+
+      {/* Модалка изменения заметки */}
+      {noteModalItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+          onClick={(e) => !isSavingNote && e.target === e.currentTarget && setNoteModalItem(null)}
+        >
+          <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#131720] p-6 shadow-2xl">
+            <button
+              onClick={() => setNoteModalItem(null)}
+              disabled={isSavingNote}
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 className="text-base font-bold text-white mb-1">
+              Заметка к игре
+            </h2>
+            <p className="text-xs text-white/40 mb-4 truncate">
+              {noteModalItem.title}
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveNoteModal();
+              }}
+              className="space-y-4"
+            >
+              <input
+                autoFocus
+                type="text"
+                value={noteInputDraft}
+                onChange={(e) => setNoteInputDraft(e.target.value)}
+                placeholder="Например: 9/10, шедевр, жду DLC..."
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-indigo-500 focus:bg-white/10"
+              />
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setNoteModalItem(null)}
+                  disabled={isSavingNote}
+                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 hover:bg-white/10 hover:text-white"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingNote}
+                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                >
+                  {isSavingNote ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Check size={13} />
+                  )}
+                  <span>Сохранить</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function pluralGames(n: number): string {
+  if (n % 10 === 1 && n % 100 !== 11) return 'игра';
+  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'игры';
+  return 'игр';
 }

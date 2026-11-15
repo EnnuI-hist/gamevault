@@ -26,7 +26,7 @@ export const STATUS_MAP: Record<GameStatus, StatusConfig> = {
   },
   playing: {
     value: 'playing',
-    label: 'В процессе',
+    label: 'Прохожу',
     badgeClass: 'bg-amber-950/80 border-amber-500/40 text-amber-300 hover:bg-amber-900/90',
     textClass: 'text-amber-300',
     dotClass: 'bg-amber-400',
